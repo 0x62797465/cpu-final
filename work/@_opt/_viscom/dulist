@@ -1,0 +1,4 @@
+2 17 decode_tb_sv_unit 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 0 0 26 0
+2 14 decode_sv_unit 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 0 0 26 0
+1 6 decode 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 131072 0 772 0
+1 9 decode_tb 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 131072 0 881 0
