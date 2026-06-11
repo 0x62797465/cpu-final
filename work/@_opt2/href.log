@@ -1,3 +1,0 @@
-BEGIN 1:rename:fast:work
-    rename_table :  1:rename_tb:fast:work
-END 

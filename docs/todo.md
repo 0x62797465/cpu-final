@@ -5,12 +5,12 @@
 ~~IQ can become full, we don't want uops to be overwritten. Then add to cpu.sv~~
 
 # Create testbench for issue
-Title
+~~Title~~
 
 # Create execution units
 ALU:
-Add sign extensions to certain op-types during execution
-Append some mispred bit so we can flush when it hits ROB; technically can be put in uop but we'd have to regenerated the testcases *again*
+~~Add sign extensions to certain op-types during execution~~
+~~Append some mispred bit so we can flush when it hits ROB; technically can be put in uop but we'd have to regenerated the testcases *again*~~ // should be delegated to the retire unit?
 AGU:
 Create LSQ; calculate memory read/write cyclic complexity; create caches seperate from icache
 

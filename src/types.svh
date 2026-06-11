@@ -25,3 +25,17 @@ typedef struct packed {
 	logic       misspredict;
 	logic [31:0]     new_pc; // for mispred
 } rob_ent_t;
+
+typedef struct packed {
+	logic        was_jmp; // if it was a jump type instruction
+    logic        unconditional_jmp;
+    logic [31:0] new_pc; // since RISC-V's JAL uses both a dest reg and changes PC
+	logic [31:0] dst_val; // new reg val
+	logic [5:0]  dst_reg; // same as above for destination
+	logic        dst_valid;
+    logic        pred_taken; // for later use, currently always not taken to simplify fetching
+    logic        taken;   // if we're wrong
+	logic        faulted;
+	logic [3:0]  rob_id; // lets ROB know what entry it is
+    logic        valid; // if it was even set this cycle
+} post_ex_uop_t;

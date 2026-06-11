@@ -1,4 +1,4 @@
-1 17 rename_tb_sv_unit 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 0 0 26 0
-2 14 rename_sv_unit 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 0 0 26 0
-2 6 rename 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 0 0 483 0
-1 9 rename_tb 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 0 0 867 0
+2 14 alu_tb_sv_unit 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 0 0 39 0
+2 11 alu_sv_unit 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 0 0 39 0
+2 3 alu 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 0 0 417 0
+1 6 alu_tb 4 fast 62 /home/h/Documents/microarchitecture-development/cpu-final/work 0 0 0 0 833 0

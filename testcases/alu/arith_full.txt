@@ -1,0 +1,9 @@
+# op_type op    src_1    v src_2    v expected_dst_val wrong_inp
+000       0000  67       1 67       1 ce               52        # base add 
+000       0000  d040f00e 1 f00115ee 1 c04205fc         52        # overflow add
+000       1000  67       1 67       1 0                52        # base sub 
+000       1000  d040f00e 1 f00115ee 1 e03fda20         52        # underflow sub 
+000       0100  fb2febd8 1 982650a1 1 6309bb79         841       # xor 
+000       0110  5e51f374 1 85c63d8a 1 dfd7fffe         3         # or
+000       0001  f925ba83 1 b7e3e3e5 1 24b75060         1         # sll 
+000       0011  3ba29929 1 f213ca0d 1 1                1         # sltu 
