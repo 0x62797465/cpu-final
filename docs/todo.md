@@ -14,10 +14,24 @@ ALU:
 AGU:
 Create LSQ; calculate memory read/write cyclic complexity; create caches seperate from icache
 
-# Testbench execute (possibly create a C wrapper to be more rebust?)
-Initially will be in pure systemverilog
-Shouldn't be too hard to verify; just make sure uop being passed through remains as similar as it should be and the output values make sense
-Need to test sign extensions in certain cases
+# ~~Testbench alu execute~~ (possibly create a C wrapper to be more rebust?)
+~~Initially will be in pure systemverilog~~
+~~Shouldn't be too hard to verify; just make sure uop being passed through remains as similar as it should be and the output values make sense~~
+~~Need to test sign extensions in certain cases~~
+
+# Testbench AGU
+
+# Fix issuing for AGU
+Hindsight is 20/20 but we are recieving mem ops in-order, we just need a circular
+buffer in order to find the next needed uop (this also makes dual issue easier
+if we chose to expand in the future).
+
+# Add jmp unit during decode
+To prevent missprediction penalty despite knowing the exact addr we need to go to;
+the instruction still will have to go to execute in order to store the prev PC+4
+to the destination register. Note that this may make one instruction invalid (plus 
+whatever fetch fetches in the same cycle, and next cycle), so we will have to do
+a lot of bubble insertion.
 
 # Writeback
 Flag certain registers as ready

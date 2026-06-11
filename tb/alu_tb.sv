@@ -89,10 +89,10 @@ module alu_tb;
         uop = '0;
         uop.op_type = 3'b000;
         uop.op = 4'b0000;
-        uop.immediate = -(12'b011011101001);
+        uop.immediate = 12'(-(12'b011011101001)); // truncate, otherwise we'd be testing an impossible immediate
         uop.src1_valid = 1'b1;
         uop.src2_valid = 1'b0;
-        src_1 = 32'h62d738f6; // who came up with these variable names? it's so bad
+        src_1 = 32'h62d738f6; // who came up with these variable names? they're so bad
         @(posedge clk);
         #1;
         assert (uop_out.dst_val == (32'h62d738f6-32'b11011101001))
@@ -102,6 +102,27 @@ module alu_tb;
                 uop_out.dst_reg == uop.dst_reg &&
                 uop_out.was_jmp == 1'b0)
             else $fatal("Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
+    endtask
+
+    task test_condtionals();
+        valid = 1;
+        uop = '0;
+        uop.op_type = 3'b100;
+        uop.op = 4'b0110;
+        uop.src1_valid = 1'b1;
+        uop.src2_valid = 1'b1;
+        src_1 = $urandom();
+        src_2 = $urandom();
+        @(posedge clk);
+        #1;
+        assert (uop_out.taken == (src_1 < src_2))
+            else $fatal("BLT result, %b, doesn't match expected, %b\n", uop_out.taken, (src_1 < src_2));
+        assert (uop_out.faulted == 1'b0 && 
+                uop_out.rob_id == uop.rob_id &&
+                uop_out.dst_reg == uop.dst_reg &&
+                uop_out.was_jmp == 1'b1)
+            else $fatal("Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
+
     endtask
 
     initial begin
@@ -114,8 +135,9 @@ module alu_tb;
         test_none();
         reset_stage();
         test_signed_add();
+        test_condtionals();
         $finish;
     end
-    // immediate signed arith, load, load+pc, some conditional jumps, JAL, 
+    // some conditional jumps, JAL, 
     // and no instruction
 endmodule
