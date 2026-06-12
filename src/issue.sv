@@ -23,7 +23,7 @@ reg [15:0] mem_uops_fl = '1;
 uop_t [7:0] alu_issue_queue = '0;
 reg [7:0] alu_uops_fl = '1;
 int i, a;
-reg [15:0] [15:0] valid_mem_ages;
+reg [15:0] [15:0] valid_mem_ages; // this is wrong, but we are gonna refractor mem logic anyways so :shrug:
 reg [15:0] mem_age_valid;
 always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
     if (!CPU_RESET_n) begin
@@ -75,7 +75,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
         // END ALU ISSUE
 
         // START MEM ISSUE
-        if (agu_ready && (!agu_valid)) begin
+        if (agu_ready && (!agu_valid)) begin // note this is going to be replaced by a simple head/tail buffer
             for (a = 0; a < 16; a = a + 1) begin // finds oldest mem-access
                 if (mem_uops_fl[a] == 1'b0) begin
                     valid_mem_ages[a] = mem_issue_queue[a].rob_id - head;

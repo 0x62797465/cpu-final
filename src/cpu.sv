@@ -248,4 +248,17 @@ alu alu_1 (
       .uop_out(ex_uops[0])
 );
 
+alu alu_2 (
+      // inputs
+      .clk(`CLK),
+      .CPU_RESET_n(CPU_RESET_n),
+      .uop(alu_2_uop),
+      .valid(alu_2_valid),
+      .src_1(p_regs[alu_2_uop.src1_reg]),
+      .src_2(p_regs[alu_2_uop.src2_reg]),
+
+      // outputs
+      .uop_out(ex_uops[1])
+);
+
 endmodule

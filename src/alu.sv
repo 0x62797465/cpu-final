@@ -28,6 +28,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
     end else if (valid) begin
         was_taken = 0;
         uop_out <= '0;
+        uop_out.was_mem <= 1'b0;
         uop_out.was_jmp <= 1'b0;
         uop_out.rob_id <= uop.rob_id;
         uop_out.dst_val <= '0;

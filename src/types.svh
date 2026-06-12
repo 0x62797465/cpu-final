@@ -28,6 +28,7 @@ typedef struct packed {
 
 typedef struct packed {
 	logic        was_jmp; // if it was a jump type instruction
+	logic        was_mem;
     logic        unconditional_jmp;
     logic [31:0] new_pc; // since RISC-V's JAL uses both a dest reg and changes PC
 	logic [31:0] dst_val; // new reg val
