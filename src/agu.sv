@@ -84,9 +84,9 @@ always @(posedge clk or negedge CPU_RESET_n) begin // SQ insertion! woohoo!
             uop_out.faulted <= 1'b1; 
         
         all_dat <= {{mask_needed[3] ? {src_2>>(offset*8)}[31:24] : data[31:24]},
-                    {mask_needed[2] ? {src_2>>(offset*8)}[23:16] : data[31:24]},
-                    {mask_needed[1] ? {src_2>>(offset*8)}[15:8]  : data[31:24]},
-                    {mask_needed[0] ? {src_2>>(offset*8)}[7:0]   : data[31:24]}};
+                    {mask_needed[2] ? {src_2>>(offset*8)}[23:16] : data[23:16]},
+                    {mask_needed[1] ? {src_2>>(offset*8)}[15:8]  : data[15:8] },
+                    {mask_needed[0] ? {src_2>>(offset*8)}[7:0]   : data[7:0]  }};
         for (int i = 0; i < 8; i++) begin
             if (f_list[i]) begin
                 f_list[i] <= 1'b0;
@@ -111,13 +111,13 @@ always @(posedge clk) begin
     if (lsq_miss) begin
         all_dat <= {{mask[3] ? data[31:24] : {raw_mem_data>>(offset*8)}[31:24]},
                     {mask[2] ? data[23:16] : {raw_mem_data>>(offset*8)}[23:16]},
-                    {mask[1] ? data[15:8] : {raw_mem_data>>(offset*8)}[15:8]},
-                    {mask[0] ? data[7:0] : {raw_mem_data>>(offset*8)}[7:0]}}; 
+                    {mask[1] ? data[15:8]  : {raw_mem_data>>(offset*8)}[15:8]},
+                    {mask[0] ? data[7:0]   : {raw_mem_data>>(offset*8)}[7:0]}}; 
         case (uop.op)
             4'b0000: // load byte 
-                uop_out.dst_val <= {{25{data[7]}}, all_dat[6:0]};
+                uop_out.dst_val <= {{25{all_dat[7]}}, all_dat[6:0]};
             4'b0001: // load half 
-                uop_out.dst_val <= {{25{data[15]}}, all_dat[14:0]};
+                uop_out.dst_val <= {{25{all_dat[15]}}, all_dat[14:0]};
             4'b0010: // load word
                 uop_out.dst_val <= all_dat;
             4'b0100: // load byte unsigned (zero extends)
