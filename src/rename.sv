@@ -38,6 +38,7 @@ reg [31:0] [5:0] rename_table; // what register maps to what physical register
 always @(posedge clk or negedge CPU_RESET_n) begin
 	if (!CPU_RESET_n) begin
 		f_list_allocated = '0;
+		rob_entries = '0;
     	f_list = {{63{1'b1}},1'b0};
 		stall_backwards <= '0;
 		stall_backwards_conf <= '0;  
@@ -47,21 +48,34 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		renamed <= '{default: '0};
 		tail <= '0;
 	end else if (stall) begin
-		// do nothing
+		f_list <= f_list^f_list_freed;
+		f_list_allocated <= '0;
 	end else if (stall_backwards_conf == 2) begin
-		if ($countones(f_list^f_list_freed) >= 6) begin
+		logic [7:0] acum;
+		logic [63:0] tmp_flist;
+		tmp_flist = (f_list^f_list_freed);
+		acum = '0;
+		for (int i = 0; i < 64; i++) begin
+			acum = acum + tmp_flist[i];
+		end
+		if (acum >= 6) begin
 			stall_backwards_conf <= '0;
 			stall_backwards <= '0;
 		end
 		f_list <= f_list^f_list_freed;
 		f_list_allocated <= '0;
-		renamed <= 0; // TODO; NOP
+		renamed <= '0; // TODO; NOP
 		// the tail won't be modified, so the ROB entries can remain untouched
 	end else begin
+		logic [7:0] acum;
+		acum = '0;
 		rename_table_dup = rename_table; // idk
 		f_list_allocated = '0; // for XOR later on flist since commit can free
 		f_list_dup = f_list^f_list_freed; // needed to see what can actually be used
-		if (stall_backwards||($countones(f_list^f_list_freed) <= 5)) begin // basically tells everything else 
+		for (int i = 0; i < 64; i++) begin
+			acum = acum + f_list_dup[i];
+		end
+		if (stall_backwards||(acum <= 5)) begin // basically tells everything else 
 			stall_backwards_conf <= stall_backwards_conf + 1; // to stop and allows the rename stage
 			stall_backwards <= '1;                            // to process remaining instructions
 		end // the or condition prevents a perm-stall that would occur

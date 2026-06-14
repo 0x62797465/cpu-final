@@ -149,21 +149,19 @@ reg [31:0] fetch_addr = 32'b0; // pointer to mem for instruction fetch
 
 reg [1:0] [31:0] predecode_instr; 
 
-always @(posedge `CLK) begin
-	predecode_instr <= {mem[(fetch_addr>>2)+1], mem[(fetch_addr>>2)]}; // dual issue, max of 2 instructions which are each 32 bits
-end
-
 reg STALL_FROM_RENAME = 0;
 reg STALL_FROM_ISSUE = 0;
 
 reg [31:0] prev_fetch_addr = 0;
 always @(posedge `CLK or negedge CPU_RESET_n) begin
-      prev_fetch_addr <= fetch_addr; // since address is one cycle delayed, this will match the actual predecoded instructions
-      if (!(STALL_FROM_RENAME|STALL_FROM_ISSUE)) begin  // on a stall, the predecoded instr will be updated, but will stop progressing, when the stall 
-            fetch_addr <= fetch_addr + 8; // is over the decode stage should have valid instructions and addresses to work with
-      end
-      if (~CPU_RESET_n) begin
+      if (!CPU_RESET_n) begin
             fetch_addr <= 0;
+      end else begin
+            prev_fetch_addr <= fetch_addr; // since address is one cycle delayed, this will match the actual predecoded instructions
+            if (!(STALL_FROM_RENAME|STALL_FROM_ISSUE)) begin  // on a stall, the predecoded instr will be updated, but will stop progressing, when the stall 
+                  fetch_addr <= fetch_addr + 8; // is over the decode stage should have valid instructions and addresses to work with
+                  predecode_instr <= {mem[(fetch_addr>>2)+1], mem[(fetch_addr>>2)]};
+            end
       end
 end      
 
@@ -259,6 +257,23 @@ alu alu_2 (
 
       // outputs
       .uop_out(ex_uops[1])
+);
+
+reg [3:0] retire_rob_id = '0;
+reg retire_rob_valid = 0;
+
+agu agu (
+      .clk(`CLK),
+      .CPU_RESET_n(CPU_RESET_n),
+      .uop(agu_uop),
+      .valid(agu_valid),
+      .src_1(p_regs[agu_uop.src1_reg]),
+      .src_2(p_regs[agu_uop.src2_reg]),
+      .retire_rob_id(retire_rob_id),
+      .retire_rob_valid(retire_rob_valid),
+
+      .uop_out(ex_uops[2]),
+      .agu_ready(agu_ready)
 );
 
 endmodule

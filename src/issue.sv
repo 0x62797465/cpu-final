@@ -43,8 +43,19 @@ always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
         stall_backwards <= '0;
     end
     else begin
+        logic [3:0] acum_alu;
+        logic [7:0] acum_agu;
+        acum_alu = '0;
+        acum_agu = '0;
+		for (int i = 0; i < 16; i++) begin
+			acum_agu = acum_agu + mem_uops_fl[i];
+		end
+        for (int i = 0; i < 8; i++) begin
+			acum_alu = acum_alu + alu_uops_fl[i];
+		end
         // Prevent IQ from being filled up
-        if (($countones(alu_uops_fl) <= 5) || ($countones(mem_uops_fl) <= 5)) begin // this cycle=2, next cycle=2; at most 4 get consumed, but we don't want the count to jump from 5 to 3 and then stall too late
+
+        if ((acum_alu <= 5) || (acum_agu <= 5)) begin // this cycle=2, next cycle=2; at most 4 get consumed, but we don't want the count to jump from 5 to 3 and then stall too late
             stall_backwards <= 1'b1;
         end else begin 
             stall_backwards <= 1'b0;
@@ -139,7 +150,8 @@ always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
         if (!stall_backwards) begin // should have cycle delay since stall_insertion is non-blocking
             // START ISSUE INSERTION
             for (i = 0; i < 2; i = i + 1) begin
-                if (uops_renamed[i].op_type inside {3'b010, 3'b100, 3'b110, 3'b111, 3'b000, 3'b101}) begin // ALU
+                if (uops_renamed[i].op_type == 3'b010 || uops_renamed[i].op_type == 3'b100 || uops_renamed[i].op_type == 3'b110 // inside statements seemingly unsupported by synth
+                     || uops_renamed[i].op_type == 3'b111  || uops_renamed[i].op_type == 3'b000  || uops_renamed[i].op_type ==  3'b101) begin // ALU
                     for (a = 0; a < 8; a = a + 1) begin // finds free IQ entry, should be auto-optimized to something better
                         if (alu_uops_fl[a] == 1'b1) begin
                             alu_issue_queue[a] <= uops_renamed[i];
