@@ -31,19 +31,6 @@ module rename_tb;
         .renamed(renamed), .rob_entries(rob_entries), .tail(tail),
         .stall_backwards(stall_backwards));
 
-    task dump_state();
-        $write("clk: %b\ncpu reset (negated): %b\nhead: %h\nuops: %b\n%b\nf_list_freed: %b\n",
-            clk, reset, head, uops[0], uops[1], f_list_freed);
-        $write("f_list: %b\nf_list_allocated: %b\nrenamed (uops): %b\n%b\nrob_entries: %b\n%b\ntail: %h\nstall_backwards: %b\n",
-            f_list, f_list_allocated, renamed[0], renamed[1], rob_entries[0], rob_entries[1],
-            tail, stall_backwards);
-        $write("RAT: ");
-        for (a = 0; a < 32; a = a + 1) begin
-            $write("%h: %h ", a, dut.rename_table[a]);
-        end
-        $write("\n");
-    endtask
-
     task reset_stage();
         f_list = {{63{1'b1}}, 1'b0}; 
         reset = 0;
@@ -54,7 +41,6 @@ module rename_tb;
     task check_flist(); // prevents double allocation
         assert (!(|(~f_list & f_list_allocated))) // Allocated registers don't try to allocate already allocated registers
             else begin 
-                dump_state();
                 $fatal("Rename tried to allocate already allocated physical register");
             end
         f_list ^= f_list_allocated; // update state
@@ -66,7 +52,6 @@ module rename_tb;
             for (b = 0; b < 32; b = b + 1) begin
                 assert (!((dut.rename_table[a] == dut.rename_table[b]) && (a != b) && (dut.rename_table[b] != 0)))
                     else begin
-                        dump_state();
                         $fatal("Both %h and %h point to %h in the RAT", a, b, dut.rename_table[b]);
                     end
             end
@@ -87,7 +72,6 @@ module rename_tb;
             //$write("%h\n",  {f_list, f_list_allocated, renamed[0], renamed[1], rob_entries[0], rob_entries[1], tail, stall_backwards});
             assert (expected_out == {f_list, f_list_allocated, renamed[0], renamed[1], rob_entries[0], rob_entries[1], tail, stall_backwards})
                 else begin
-                    dump_state();
                     $fatal("State does not match for basic!\n");
                 end
         end
@@ -107,7 +91,6 @@ module rename_tb;
             //$write("%b\n",  {f_list, f_list_allocated, renamed[0], renamed[1], rob_entries[0], rob_entries[1], tail, stall_backwards});
             assert (expected_out == {f_list, f_list_allocated, renamed[0], renamed[1], rob_entries[0], rob_entries[1], tail, stall_backwards})
                 else begin
-                    dump_state();
                     $fatal("State does not match for stall!\n");
                 end
             if (stall_backwards) begin
@@ -121,7 +104,6 @@ module rename_tb;
                 //$write("%b\n",  {f_list, f_list_allocated, renamed[0], renamed[1], rob_entries[0], rob_entries[1], tail, stall_backwards});
                 assert (expected_out == {f_list, f_list_allocated, renamed[0], renamed[1], rob_entries[0], rob_entries[1], tail, stall_backwards})
                     else begin
-                        dump_state();
                         $fatal("State does not match for stall (stall edge case)!\n");
                     end
             end
