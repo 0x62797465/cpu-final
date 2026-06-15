@@ -11,15 +11,15 @@
 ALU:
 ~~Add sign extensions to certain op-types during execution~~
 ~~Append some mispred bit so we can flush when it hits ROB; technically can be put in uop but we'd have to regenerated the testcases *again*~~ // should be delegated to the retire unit?
-AGU:
-Create LSQ; calculate memory read/write cyclic complexity; create caches seperate from icache
+~~AGU:
+Create LSQ; calculate memory read/write cyclic complexity; create caches seperate from icache~~
 
 # ~~Testbench alu execute~~ (possibly create a C wrapper to be more rebust?)
 ~~Initially will be in pure systemverilog~~
 ~~Shouldn't be too hard to verify; just make sure uop being passed through remains as similar as it should be and the output values make sense~~
 ~~Need to test sign extensions in certain cases~~
 
-# Testbench AGU
+~~# Testbench AGU~~
 
 # Fix issuing for AGU
 Hindsight is 20/20 but we are recieving mem ops in-order, we just need a circular
