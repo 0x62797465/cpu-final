@@ -79,7 +79,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 			stall_backwards_conf <= stall_backwards_conf + 1; // to stop and allows the rename stage
 			stall_backwards <= '1;                            // to process remaining instructions
 		end // the or condition prevents a perm-stall that would occur
-		for (i = 0; i < 2; i = i + 1) begin // operate on all 4 uops
+		for (i = 0; i < 2; i = i + 1) begin // operate on all 2 uops
 			allocated_preg = 0;
 			if (!uops[i].faulted) begin // don't fill up rename table if invalid opcode
 				renamed[i] <= uops[i]; // copy uop

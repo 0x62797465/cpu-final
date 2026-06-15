@@ -63,8 +63,6 @@ module agu (
     output reg       agu_ready
 );
 
-// (* ramstyle = "M10K" *) reg [31:0] mem [8191:0]; // 32kb of r/w mem
-
 typedef struct packed {
     logic [3:0]  age; // rob_id and head trick unreliable; this trick should not overflow because the add happens every insertion, which means the oldest instruction is at most 7(?)
     logic [3:0]  rob_id;
@@ -98,6 +96,19 @@ reg [3:0] queue_mask;
 reg [31:0] queue_data;
 reg write_enable;
 
+`ifdef sim
+(* ramstyle = "M10K" *) reg [31:0] mem [8191:0]; // 32kb of r/w mem
+// Quartus standard turns this into logic cells, so below is used
+always @(posedge clk) begin
+    if (write_enable) begin
+        if (queue_mask[0]) mem[queue_addr][7:0]   <= queue_data[7:0];
+        if (queue_mask[1]) mem[queue_addr][15:8]  <= queue_data[15:8];
+        if (queue_mask[2]) mem[queue_addr][23:16] <= queue_data[23:16];
+        if (queue_mask[3]) mem[queue_addr][31:24] <= queue_data[31:24];
+    end
+    raw_mem_data <= mem[addr[14:2]];
+end
+`else
 altsyncram mem (
     .clock0(clk),
     .address_a(queue_addr),
@@ -120,18 +131,7 @@ defparam
     mem.address_reg_b = "CLOCK0",
     mem.outdata_reg_b = "CLOCK0",
     mem.ram_block_type = "M10K";
-
-/* // Quartus standard turns this into logic cells, so above is used
-always @(posedge clk) begin
-    if (write_enable) begin
-        if (queue_mask[0]) mem[queue_addr][7:0]   <= queue_data[7:0];
-        if (queue_mask[1]) mem[queue_addr][15:8]  <= queue_data[15:8];
-        if (queue_mask[2]) mem[queue_addr][23:16] <= queue_data[23:16];
-        if (queue_mask[3]) mem[queue_addr][31:24] <= queue_data[31:24];
-    end
-    raw_mem_data <= mem[addr[14:2]];
-end
-*/
+`endif
 
 always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
     if (!CPU_RESET_n) begin 

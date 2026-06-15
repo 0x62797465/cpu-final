@@ -24,3 +24,10 @@ alu_tb: src/alu.sv tb/alu_tb.sv
 	vlog -sv src/alu.sv tb/alu_tb.sv
 	SALT_LICENSE_SERVER=~/Tools/LR-156275_License.dat vsim -suppress 12110 -quiet -c work.alu_tb -do "run -all; quit"
 
+agu_tb: src/alu.sv tb/alu_tb.sv
+	vlib work
+	vmap work work
+	vlog +define+sim -sv src/agu.sv tb/agu_tb.sv # This one is special because you need to pay intel money if you want write masking writes to BRAM to be infered
+	SALT_LICENSE_SERVER=~/Tools/LR-156275_License.dat vsim -suppress 12110 -quiet -c work.agu_tb -do "run -all; quit"
+
+
