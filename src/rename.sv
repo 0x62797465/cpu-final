@@ -20,6 +20,7 @@ module rename (
 		output reg       [63:0]    f_list_allocated, // needed due to ROB freeing p-regs, what to do during misspredict?
 		output var uop_t [1:0]     renamed,
 		output var rob_ent_t [1:0] rob_entries,
+		output reg       [1:0]     rob_ent_val,
 		output reg       [3:0]     tail,
 		output reg                 stall_backwards
 );
@@ -28,7 +29,6 @@ integer reset_rt;
 integer i;
 integer a;
 
-reg [1:0] stall_backwards_conf;
 reg [5:0] allocated_preg;
 reg [63:0] f_list_dup;
 reg [63:0] f_list;
@@ -41,16 +41,17 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		rob_entries = '0;
     	f_list = {{63{1'b1}},1'b0};
 		stall_backwards <= '0;
-		stall_backwards_conf <= '0;  
 		for (reset_rt = 0; reset_rt < 32; reset_rt = reset_rt + 1) begin
 			rename_table[reset_rt] <= '0; // read from 0 if unitialized
 		end
 		renamed <= '{default: '0};
 		tail <= '0;
+		rob_ent_val = '0;
 	end else if (stall) begin
-		f_list <= f_list^f_list_freed;
-		f_list_allocated <= '0;
-	end else if (stall_backwards_conf == 2) begin
+		f_list = f_list^f_list_freed;
+		f_list_allocated = '0;
+		rob_ent_val = '0;
+	end else if (stall_backwards) begin
 		logic [7:0] acum;
 		logic [63:0] tmp_flist;
 		tmp_flist = (f_list^f_list_freed);
@@ -58,13 +59,13 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		for (int i = 0; i < 64; i++) begin
 			acum = acum + tmp_flist[i];
 		end
-		if (acum >= 6) begin
-			stall_backwards_conf <= '0;
+		if (acum >= 3) begin
 			stall_backwards <= '0;
 		end
 		f_list <= f_list^f_list_freed;
 		f_list_allocated <= '0;
-		renamed <= '0; // TODO; NOP
+		renamed <= '0; // NOP
+		rob_ent_val = '0;
 		// the tail won't be modified, so the ROB entries can remain untouched
 	end else begin
 		logic [7:0] acum;
@@ -75,13 +76,13 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		for (int i = 0; i < 64; i++) begin
 			acum = acum + f_list_dup[i];
 		end
-		if (stall_backwards||(acum <= 5)) begin // basically tells everything else 
-			stall_backwards_conf <= stall_backwards_conf + 1; // to stop and allows the rename stage
+		if (acum <= 3) begin // basically tells everything else 
 			stall_backwards <= '1;                            // to process remaining instructions
 		end // the or condition prevents a perm-stall that would occur
 		for (i = 0; i < 2; i = i + 1) begin // operate on all 2 uops
 			allocated_preg = 0;
-			if (!uops[i].faulted) begin // don't fill up rename table if invalid opcode
+			if (!uops[i].faulted && (|uops[i])) begin // don't fill up rename table if invalid opcode
+				rob_ent_val[i] <= 1'b1;
 				renamed[i] <= uops[i]; // copy uop
 				renamed[i].rob_id <= tail;
 				tail = tail + 1;
@@ -101,7 +102,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 						end
 					end
 					rob_entries[i].finished <= 1'b0;
-					rob_entries[i].spec <= (uops[i].op_type == 3'b010 || uops[i].op_type == 3'b100 || uops[i].op_type == 3'b101);
+					rob_entries[i].spec <= (uops[i].op_type == 3'b010 || uops[i].op_type == 3'b100);
 					rob_entries[i].store <= (uops[i].op_type == 3'b011);
 					rob_entries[i].dst_valid <= 1'b1;
 					rob_entries[i].a_dst_reg <= uops[i].dst_reg;
@@ -113,7 +114,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 					renamed[i].dst_reg <= allocated_preg; // updates uop to reflect real physical register
 				end else begin 
 					rob_entries[i].finished <= 1'b0;
-					rob_entries[i].spec <= (uops[i].op_type == 3'b010 || uops[i].op_type == 3'b100 || uops[i].op_type == 3'b101);
+					rob_entries[i].spec <= (uops[i].op_type == 3'b010 || uops[i].op_type == 3'b100);
 					rob_entries[i].store <= (uops[i].op_type == 3'b011);
 					rob_entries[i].dst_valid <= 1'b0;
 					rob_entries[i].a_dst_reg <= 6'b0;
@@ -122,11 +123,15 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 					rob_entries[i].misspredict <= 1'b0;
 					rob_entries[i].new_pc <= 32'b0;
 				end
-			end else begin
+			end else if (|uops[i]) begin
+				rob_ent_val[i] <= 1'b1;
 				rob_entries[i] <= '1; // will check in ROB
-				renamed[i] <= uops[i]; // TODO: replace with NOP
+				renamed[i] <= '0; // TODO: replace with NOP
 				renamed[i].rob_id <= tail;
 				tail = tail + 1;
+			end else begin
+				renamed[i] <= '0; // we have to pass forward nops
+				rob_ent_val[i] <= 1'b0;
 			end
 		end
 		f_list <= f_list_dup;

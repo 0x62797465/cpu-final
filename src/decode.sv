@@ -27,11 +27,16 @@ integer i;
 // environment calls/breaks
 // some I/O instructions(?)
 
+reg [31:0] prev_prev_fetch_addr = '0;
+
 always @(posedge clk or negedge CPU_RESET_n) begin
 	if (!CPU_RESET_n) begin
 		uops <= '0;
 	end else begin
-		if (!stall) begin
+		if (prev_fetch_addr == prev_prev_fetch_addr && prev_fetch_addr != 0) begin
+			uops <= '0;			
+		end else if (!stall) begin
+			prev_prev_fetch_addr <= prev_fetch_addr;
 			uops <= '0;
 			for (i = 0; i < 2; i = i + 1) begin // despite the for loop, this is done in parellel
 				uops[i].pc <= prev_fetch_addr + (i*4); // 4 bytes
