@@ -17,7 +17,7 @@ module rename (
 		input  var uop_t [1:0]     uops,
 		input  reg       [63:0]    f_list_freed,
 
-		output reg       [63:0]    f_list_allocated, // needed due to ROB freeing p-regs, what to do during misspredict?
+		output reg       [63:0]    f_list_allocated, // needed due to wb ready-ing p-regs and ROB freeing using previous physical register, what to do during misspredict?
 		output var uop_t [1:0]     renamed,
 		output var rob_ent_t [1:0] rob_entries,
 		output reg       [1:0]     rob_ent_val,

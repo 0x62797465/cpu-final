@@ -1,13 +1,3 @@
-# Blocking/non-blocking mess
-Essentially, we fucked up. 
-
-# Writeback
-Flag certain registers as ready
-Writeback
-
-# Testbench wb
-Should be simple
-
 # ROB stuff
 Write rob entry (coming from rename)
 Handle mispredictions

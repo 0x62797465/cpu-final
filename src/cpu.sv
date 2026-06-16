@@ -192,7 +192,11 @@ decode decode (
 );
 
 reg [63:0] [31:0] p_regs = '0; // 64 32 bit physical registers
-reg [63:0] p_reg_ready = {{63{1'b1}},1'b0}; // written back? set true by wb, set false by ROB (using ppreg), read by issue; 0 for reg[0] which is valid to read from unitiliazed (it feels like this should be inverted ;-;)
+// every register is initally pointing towards the 0th reg
+// so when we need to write somwhere we change the preg to
+// something marked as not written back for a safe initial 
+// state
+reg [63:0] p_reg_ready = {{63{1'b0}},1'b1}; // written back
 
 reg [63:0] f_list_allocated = '0; // what regs are free
 reg [63:0] f_list_freed = '0; // for ROB
@@ -293,5 +297,24 @@ agu agu (
       .uop_out(ex_uops[2]),
       .agu_ready(agu_ready)
 );
+
+// writeback; very simple so no module
+always @(posedge `CLK or negedge CPU_RESET_n) begin
+      if (!CPU_RESET_n) begin
+            p_regs <= 1'b0;
+      end else begin 
+            for (int i = 0; i < 3; i++) begin
+                  if (ex_uops[i].valid 
+                  && ex_uops[i].dst_valid 
+                  && !ex_uops[i].faulted
+                  && (ex_uops[i].dst_reg != 0)) begin
+                        p_regs[ex_uops[i].dst_reg] <= ex_uops[i].dst_val;
+                        p_reg_ready[ex_uops[i].dst_reg] <= 1'b1;
+                  end
+            end
+            p_reg_ready <= p_reg_ready & ~f_list_allocated; // just allocated == not yet ready
+      end
+end 
+
 
 endmodule
