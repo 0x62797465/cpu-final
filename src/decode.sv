@@ -5,8 +5,11 @@ module decode (
 		input              CPU_RESET_n,
 		input              stall,
 		input  [31:0]      prev_fetch_addr,
+		input              n_valid,
 		input [1:0] [31:0] instructions,
-		output uop_t [1:0] uops
+		output uop_t [1:0] uops,
+		output reg [31:0]  new_pc,
+		output reg         jmp
 );
 
 localparam R_type = 7'b0110011; // register-register arithmatic
@@ -28,20 +31,26 @@ integer i;
 // some I/O instructions(?)
 
 reg [31:0] prev_prev_fetch_addr = '0;
+reg just_jumped = 0;
 
 always @(posedge clk or negedge CPU_RESET_n) begin
 	if (!CPU_RESET_n) begin
 		uops <= '0;
+		just_jumped <= '0;
 	end else begin
-		if (prev_fetch_addr == prev_prev_fetch_addr && prev_fetch_addr != 0) begin
-			uops <= '0;			
+		if (just_jumped && !stall) begin
+			just_jumped <= 1'b0;
+			new_pc <= 1'b0;
+			uops <= '0;
+			jmp <= 1'b0;
 		end else if (!stall) begin
-			prev_prev_fetch_addr <= prev_fetch_addr;
+			logic jumped;
+			jumped = 0;
 			uops <= '0;
 			for (i = 0; i < 2; i = i + 1) begin // despite the for loop, this is done in parellel
 				uops[i].pc <= prev_fetch_addr + (i*4); // 4 bytes
 				uops[i].faulted <= 0;
-				if ((instructions[i][1:0]) == 2'b11) begin // non-compressed
+				if ((instructions[i][1:0]) == 2'b11 && !jumped && (i != 0 || !n_valid)) begin // non-compressed
 					case (instructions[i][6:0])
 						R_type : begin // assigns src1, src2, and dst
 								uops[i].op_type <= 3'b0; // ALU
@@ -121,6 +130,10 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 								uops[i].immediate <= {8'b0, instructions[i][31], instructions[i][7], instructions[i][30:25], instructions[i][11:8]}; // why
 							end
 						J_type : begin // assigns immediate, dst1
+								just_jumped <= 1'b1; // so next cycle inserts bubbles
+								jumped = 1; // so next instruction becomes bubble
+								jmp <= 1'b1; // so fetch knows to update PC
+								new_pc <= prev_fetch_addr + (i*4) + {{12{instructions[i][31]}}, instructions[i][19:12], instructions[i][20], instructions[i][30:21], 1'b0};
 								uops[i].op_type <= 3'b101; // jmp pc+imm type
 								uops[i].src1_valid <= 1'b0;
 								uops[i].src2_valid <= 1'b0;
@@ -147,10 +160,10 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 						default:
 							uops[i].faulted <= 1;
 					endcase
-				end else begin // compressed
-					// TODO
+				end else if (jumped||(i==0 && n_valid)) 
+					uops[i] <= '0;
+				else // compressed
 					uops[i].faulted <= 1;
-				end
 			end
 		end
 	end

@@ -5,6 +5,9 @@ to the destination register. Note that this may make one instruction invalid (pl
 whatever fetch fetches in the same cycle, and next cycle), so we will have to do
 a lot of bubble insertion.
 
+# Blocking/non-blocking mess
+Essentially, we fucked up. 
+
 # Writeback
 Flag certain registers as ready
 Writeback

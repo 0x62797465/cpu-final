@@ -152,15 +152,27 @@ reg [1:0] [31:0] predecode_instr;
 reg STALL_FROM_RENAME = 0;
 reg STALL_FROM_ISSUE = 0;
 
+reg n_first_valid = 0;
+reg jmp = 0;
+reg [31:0] new_pc = 0;
 reg [31:0] prev_fetch_addr = 0;
 always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
             fetch_addr <= 0;
       end else begin
-            prev_fetch_addr <= fetch_addr; // since address is one cycle delayed, this will match the actual predecoded instructions
-            if (!(STALL_FROM_RENAME|STALL_FROM_ISSUE)) begin  // on a stall, the predecoded instr will be updated, but will stop progressing, when the stall 
-                  fetch_addr <= fetch_addr + 8; // is over the decode stage should have valid instructions and addresses to work with
-                  predecode_instr <= {mem[(fetch_addr>>2)+1], mem[(fetch_addr>>2)]};
+            if (!(STALL_FROM_RENAME|STALL_FROM_ISSUE)) begin
+                  n_first_valid <= 1'b0;
+                  if (jmp) begin
+                        prev_fetch_addr <= new_pc;
+                        predecode_instr <= {mem[(new_pc>>2)+1], mem[(new_pc>>2)]};
+                        if ({new_pc >> 3, 3'b000} != new_pc)
+                              n_first_valid <= 1'b1;
+                        fetch_addr <= {new_pc >> 3, 3'b000} + 8;
+                  end else begin
+                        prev_fetch_addr <= fetch_addr;
+                        predecode_instr <= {mem[(fetch_addr>>2)+1], mem[(fetch_addr>>2)]};
+                        fetch_addr <= fetch_addr + 8;
+                  end
             end
       end
 end      
@@ -169,10 +181,14 @@ uop_t [1:0] uops_prerename;
 decode decode (
 	.clk(`CLK),
 	.CPU_RESET_n(CPU_RESET_n),
+      .n_valid(n_first_valid),
 	.instructions(predecode_instr),
 	.prev_fetch_addr(prev_fetch_addr),
 	.stall(STALL_FROM_RENAME|STALL_FROM_ISSUE), // stall condition, does nothing when it happens (which prevents the uop from being overwritten)
-	.uops(uops_prerename)
+	
+      .uops(uops_prerename),
+      .new_pc(new_pc),
+      .jmp(jmp)
 );
 
 reg [63:0] [31:0] p_regs = '0; // 64 32 bit physical registers
