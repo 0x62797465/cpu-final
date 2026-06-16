@@ -90,15 +90,18 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 				if (uops[i].src2_valid) begin
 					renamed[i].src2_reg <= rename_table[uops[i].src2_reg];
 				end
-				if (uops[i].dst_valid && (uops[i].dst_reg != 0)) begin
-					for (a = 0; a < 64; a = a + 1) begin // finds free physical register, should be auto-optimized to something better
-						if (f_list_dup[a] == 1'b1) begin
-							allocated_preg = 6'(a);
-							f_list_dup[a] = 1'b0; // allocates it
-							f_list_allocated[a] = 1'b1;
-							break;
+				if (uops[i].dst_valid) begin
+					if (uops[i].dst_reg != 0) begin
+						for (a = 0; a < 64; a = a + 1) begin // finds free physical register, should be auto-optimized to something better
+							if (f_list_dup[a] == 1'b1) begin
+								allocated_preg = 6'(a);
+								f_list_dup[a] = 1'b0; // allocates it
+								f_list_allocated[a] = 1'b1;
+								break;
+							end
 						end
-					end
+					end else  
+						allocated_preg = 6'b0; // mem to 0 needs to actually execute so we can fault if bad access
 					rob_entries[i].finished <= 1'b0;
 					rob_entries[i].spec <= (uops[i].op_type == 3'b010 || uops[i].op_type == 3'b100);
 					rob_entries[i].store <= (uops[i].op_type == 3'b011);

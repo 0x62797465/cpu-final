@@ -1,8 +1,3 @@
-# Fix issuing for AGU
-Hindsight is 20/20 but we are recieving mem ops in-order, we just need a circular
-buffer in order to find the next needed uop (this also makes dual issue easier
-if we chose to expand in the future).
-
 # Add jmp unit during decode
 To prevent missprediction penalty despite knowing the exact addr we need to go to;
 the instruction still will have to go to execute in order to store the prev PC+4
