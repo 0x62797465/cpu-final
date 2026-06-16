@@ -1,10 +1,3 @@
-# Add jmp unit during decode
-To prevent missprediction penalty despite knowing the exact addr we need to go to;
-the instruction still will have to go to execute in order to store the prev PC+4
-to the destination register. Note that this may make one instruction invalid (plus 
-whatever fetch fetches in the same cycle, and next cycle), so we will have to do
-a lot of bubble insertion.
-
 # Blocking/non-blocking mess
 Essentially, we fucked up. 
 

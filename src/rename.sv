@@ -36,7 +36,7 @@ reg [31:0] [5:0] rename_table; // what register maps to what physical register
 
 always @(posedge clk or negedge CPU_RESET_n) begin
 	if (!CPU_RESET_n) begin
-		f_list_allocated = '0;
+		f_list_allocated <= '0;
 		rob_entries = '0;
     	f_list = {{63{1'b1}},1'b0};
 		stall_backwards <= '0;
@@ -45,11 +45,11 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		end
 		renamed <= '{default: '0};
 		tail <= '0;
-		rob_ent_val = '0;
+		rob_ent_val <= '0;
 	end else if (stall) begin
 		f_list = f_list^f_list_freed;
 		f_list_allocated = '0;
-		rob_ent_val = '0;
+		rob_ent_val <= '0;
 	end else if (stall_backwards) begin
 		logic [7:0] acum;
 		logic [63:0] tmp_flist;
@@ -64,12 +64,12 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		f_list <= f_list^f_list_freed;
 		f_list_allocated <= '0;
 		renamed <= '0; // NOP
-		rob_ent_val = '0;
+		rob_ent_val <= '0;
 		// the tail won't be modified, so the ROB entries can remain untouched
 	end else begin
 		logic [7:0] acum;
 		acum = '0;
-		f_list_allocated = '0; // for XOR later on flist since commit can free
+		f_list_allocated <= '0; // for XOR later on flist since commit can free
 		f_list_dup = f_list^f_list_freed; // needed to see what can actually be used
 		for (int i = 0; i < 64; i++) begin
 			acum = acum + f_list_dup[i];
@@ -83,7 +83,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 				rob_ent_val[i] <= 1'b1;
 				renamed[i] <= uops[i]; // copy uop
 				renamed[i].rob_id <= tail;
-				tail = tail + 1;
+				tail <= tail + 1;
 				if (uops[i].src1_valid) begin
 					renamed[i].src1_reg <= rename_table[uops[i].src1_reg]; // update areg to preg
 				end
@@ -96,7 +96,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 							if (f_list_dup[a] == 1'b1) begin
 								allocated_preg = 6'(a);
 								f_list_dup[a] = 1'b0; // allocates it
-								f_list_allocated[a] = 1'b1;
+								f_list_allocated[a] <= 1'b1;
 								break;
 							end
 						end
@@ -127,7 +127,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 			end else if (|uops[i]) begin
 				rob_ent_val[i] <= 1'b1;
 				rob_entries[i] <= '1; // will check in ROB
-				renamed[i] <= '0; // TODO: replace with NOP
+				renamed[i] <= '0; // replace with NOP
 				renamed[i].rob_id <= tail;
 				tail = tail + 1;
 			end else begin
