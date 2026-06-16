@@ -37,11 +37,14 @@ module issue_tb;
     task shouldstall(); // prevents un-needed stalling
         assert (!((stall_backwards && should_unstall) && // if we should unstall this cycle and we have not
         !(($countones(dut.alu_uops_fl) <= 5) || // if we should be stalling 
-        ($countones(dut.mem_uops_fl) <= 5))))  
+        ((dut.mem_tail+1) == (dut.mem_head)) || ((dut.mem_tail==dut.mem_head && 
+            |dut.mem_issue_queue[dut.mem_head])))))  
             else
-                $write("Stalled without reason; amount free ALU %d MEM %d last cycle's stall reason (1 means ALU) %b\n", $countones(dut.alu_uops_fl), $countones(dut.mem_uops_fl), last_cycle_stall_reason);
+                $write("Stalled without reason; amount free ALU %d MEM %d %d last cycle's stall reason (1 means ALU) %b\n", $countones(dut.alu_uops_fl), dut.mem_tail, dut.mem_head, last_cycle_stall_reason);
         if (stall_backwards) begin
-            if (($countones(dut.alu_uops_fl) <= 5) || ($countones(dut.mem_uops_fl) <= 5))
+            if ((($countones(dut.alu_uops_fl) <= 5) || // if we should be stalling 
+            ((dut.mem_tail+1) == (dut.mem_head)) || ((dut.mem_tail==dut.mem_head && 
+            |dut.mem_issue_queue[dut.mem_head]))))
                 should_unstall <= 1'b0;
             else
                 should_unstall <= 1'b1;
@@ -92,8 +95,7 @@ module issue_tb;
             end
             $fgets(line_expected, fd_expected);
             $sscanf(line_expected, "%h", expected_out);
-            @(posedge clk)
-            #1
+            @(negedge clk)
 
             why_stall = ($countones(dut.alu_uops_fl) <= 5);
 
@@ -101,7 +103,7 @@ module issue_tb;
             agu_uop, agu_valid, agu_ready, stall_backwards, 
             why_stall})
                 else 
-                    $fatal("Output does not match expected, expected: %h output: %h\n",
+                    $fatal("Output does not match expected, expected: %b output: %b\n",
                      expected_out, {alu_1_uop, alu_2_uop, alu_1_valid, alu_2_valid, 
                     agu_uop, agu_valid, agu_ready, stall_backwards, 
                     why_stall});
@@ -111,15 +113,13 @@ module issue_tb;
                 agu_ready <= 1'b0;
             end
             if (stall_backwards && !why_stall) begin // marks needed regs as ready and says "hey the agu is available"
-                for (a = 0; a < 16; a = a + 1) begin
-                    if ((dut.mem_issue_queue[a].rob_id-head) == dut.valid_mem_ages[0]) begin
-                        if (dut.mem_issue_queue[a].src1_valid) begin
-                            p_reg_ready[dut.mem_issue_queue[a].src1_reg] <= 1'b1;
-                        end 
-                        if (dut.mem_issue_queue[a].src2_valid) begin
-                            p_reg_ready[dut.mem_issue_queue[a].src2_reg] <= 1'b1;
-                        end       
-                    end
+                if ((dut.mem_issue_queue[dut.mem_head].rob_id-head)) begin
+                    if (dut.mem_issue_queue[dut.mem_head].src1_valid) begin
+                        p_reg_ready[dut.mem_issue_queue[dut.mem_head].src1_reg] <= 1'b1;
+                    end 
+                    if (dut.mem_issue_queue[dut.mem_head].src2_valid) begin
+                        p_reg_ready[dut.mem_issue_queue[dut.mem_head].src2_reg] <= 1'b1;
+                    end       
                 end
                 agu_ready <= 1'b1;
             end

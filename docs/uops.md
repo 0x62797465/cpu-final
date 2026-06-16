@@ -52,3 +52,44 @@ typedef struct packed {
     load upper immediate (dest = immediate << 12)
 `111` - load+pc
     add upper imm to PC (dest = pc + (im << 12))
+
+# Module "contracts"
+## Fetch
+On reset: the fetch address becomes zero.
+On stall: the PC does not get updated, prev_fetch_addr remains as fetch_addr. 
+Normally: PC gets incremented by 8 and places 64 bits from the 4 byte aligned mem into predecoded instructions.
+In: stall signal, reset
+Out: predecoded instr
+
+## Decode
+When the fetch address changes (or if it's zero) then we decode into the uop's pc,
+op_type and op (as documented above), and do some basic checks to prevent some
+invalid instructions. We also set wether or not registers are valid, we set immediates,
+we set aregs for dsts and srcs. If the decode detects a non-moved fetch, it emits 
+"nops" in the form of all-0 instructions.
+In: PC at time of fetch, reset, predecoded instruction, stall
+Out: prerename uops
+
+## Rename
+Given two regular instructions, we find the renamed source variables from the rename table
+then apply them to the new uop. If there is a destination register then we look towards the
+free list to find a free entry, then allocate it and we place it into the renamed uop.
+We create an rob entry by marking as unfinished, speculative if it's a jump to reg or
+conditonal branch (**note that this may be unused**), wether it's a store (**may also be
+unused**), we set the previous physical register (so it can be freed upon retirement), 
+the architectural destination register (so the architecural state matches upon mispred), 
+physical destination register (to be marked as ready). The renamed uop is the same except
+for the rob_id and the registers.
+We also mark the rob entrys as valid.
+The stall will be issued if there is not going to be enough uops. For every following cycle
+we check the condition to determine wether or not to un-stall. Upon a low-stall, we will
+set the backwards stall to low and then, next cycle, we process the data stored in the uops.
+This data will be old, it would have been reflected in the unit state the cycle after we
+set the stall (since the stall doesn't apply same-cycle). 
+NOPs are specified by all-0 instructions and the ROB ent is not set. 
+
+In: reset, stall, rob head, prerename uops, free free list (from retire)
+Out: allocated free list (for retire), renamed uops, rob entries (for retire), 
+tail (for retire), stall backwards
+
+## 

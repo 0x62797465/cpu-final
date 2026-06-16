@@ -185,6 +185,7 @@ reg [3:0] head = 0;
 
 uop_t [1:0] uops_renamed = '0;
 rob_ent_t [1:0] rob_entries = '0;
+reg [1:0] rob_ent_val = '0;
 rename rename (
       // inputs
 	.clk(`CLK),
@@ -198,6 +199,7 @@ rename rename (
       .f_list_allocated(f_list_allocated), // list of pregs allocated by rename
 	.renamed(uops_renamed),
       .rob_entries(rob_entries),
+      .rob_ent_val(rob_ent_val),
       .tail(tail),
 	.stall_backwards(STALL_FROM_RENAME) // incase not enough free regs are available
 );

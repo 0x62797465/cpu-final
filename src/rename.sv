@@ -32,7 +32,6 @@ integer a;
 reg [5:0] allocated_preg;
 reg [63:0] f_list_dup;
 reg [63:0] f_list;
-reg [31:0] [5:0] rename_table_dup;
 reg [31:0] [5:0] rename_table; // what register maps to what physical register
 
 always @(posedge clk or negedge CPU_RESET_n) begin
@@ -42,7 +41,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
     	f_list = {{63{1'b1}},1'b0};
 		stall_backwards <= '0;
 		for (reset_rt = 0; reset_rt < 32; reset_rt = reset_rt + 1) begin
-			rename_table[reset_rt] <= '0; // read from 0 if unitialized
+			rename_table[reset_rt] = '0; // read from 0 if unitialized
 		end
 		renamed <= '{default: '0};
 		tail <= '0;
@@ -70,7 +69,6 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 	end else begin
 		logic [7:0] acum;
 		acum = '0;
-		rename_table_dup = rename_table; // idk
 		f_list_allocated = '0; // for XOR later on flist since commit can free
 		f_list_dup = f_list^f_list_freed; // needed to see what can actually be used
 		for (int i = 0; i < 64; i++) begin
@@ -87,10 +85,10 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 				renamed[i].rob_id <= tail;
 				tail = tail + 1;
 				if (uops[i].src1_valid) begin
-					renamed[i].src1_reg <= rename_table_dup[uops[i].src1_reg]; // update areg to preg
+					renamed[i].src1_reg <= rename_table[uops[i].src1_reg]; // update areg to preg
 				end
 				if (uops[i].src2_valid) begin
-					renamed[i].src2_reg <= rename_table_dup[uops[i].src2_reg];
+					renamed[i].src2_reg <= rename_table[uops[i].src2_reg];
 				end
 				if (uops[i].dst_valid && (uops[i].dst_reg != 0)) begin
 					for (a = 0; a < 64; a = a + 1) begin // finds free physical register, should be auto-optimized to something better
@@ -106,11 +104,11 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 					rob_entries[i].store <= (uops[i].op_type == 3'b011);
 					rob_entries[i].dst_valid <= 1'b1;
 					rob_entries[i].a_dst_reg <= uops[i].dst_reg;
-					rob_entries[i].pp_dst_reg <= rename_table_dup[uops[i].dst_reg];
+					rob_entries[i].pp_dst_reg <= rename_table[uops[i].dst_reg];
 					rob_entries[i].p_dst_reg <= allocated_preg; 
 					rob_entries[i].misspredict <= 1'b0;
 					rob_entries[i].new_pc <= 32'b0;
-					rename_table_dup[uops[i].dst_reg] = allocated_preg; // marks architectural register as pointing to this physical register
+					rename_table[uops[i].dst_reg] = allocated_preg; // marks architectural register as pointing to this physical register
 					renamed[i].dst_reg <= allocated_preg; // updates uop to reflect real physical register
 				end else begin 
 					rob_entries[i].finished <= 1'b0;
@@ -135,7 +133,6 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 			end
 		end
 		f_list <= f_list_dup;
-		rename_table <= rename_table_dup;
 	end
 end
 endmodule
