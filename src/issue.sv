@@ -48,7 +48,12 @@ always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
 		end
         // Prevent IQ from being filled up
 
-        if ((acum_alu <= 5) || ((mem_tail+2) == (mem_head)) || (((mem_tail+1) == (mem_head)) && |mem_issue_queue[mem_head])) begin // this cycle=2, next cycle=2; at most 4 get consumed, but we don't want the count to jump from 5 to 3 and then stall too late
+        if ((acum_alu <= 5)
+            || ((mem_tail+3) == (mem_head))
+            || ((mem_tail+2) == (mem_head))
+            || ((mem_tail+1) == (mem_head))
+            || (((mem_tail) == (mem_head)) &&
+            |mem_issue_queue[mem_head])) begin // this cycle=2, next cycle=2; at most 4 get consumed, but we don't want the count to jump from 5 to 3 and then stall too late
             stall_backwards <= 1'b1;
         end else begin 
             stall_backwards <= 1'b0;
