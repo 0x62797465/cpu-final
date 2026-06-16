@@ -37,8 +37,8 @@ reg [31:0] [5:0] rename_table; // what register maps to what physical register
 always @(posedge clk or negedge CPU_RESET_n) begin
 	if (!CPU_RESET_n) begin
 		f_list_allocated <= '0;
-		rob_entries = '0;
-    	f_list = {{63{1'b1}},1'b0};
+		rob_entries <= '0;
+    	f_list <= {{63{1'b1}},1'b0};
 		stall_backwards <= '0;
 		for (reset_rt = 0; reset_rt < 32; reset_rt = reset_rt + 1) begin
 			rename_table[reset_rt] = '0; // read from 0 if unitialized
@@ -47,8 +47,8 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		tail <= '0;
 		rob_ent_val <= '0;
 	end else if (stall) begin
-		f_list = f_list^f_list_freed;
-		f_list_allocated = '0;
+		f_list <= f_list^f_list_freed;
+		f_list_allocated <= '0;
 		rob_ent_val <= '0;
 	end else if (stall_backwards) begin
 		logic [7:0] acum;
@@ -68,6 +68,8 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		// the tail won't be modified, so the ROB entries can remain untouched
 	end else begin
 		logic [7:0] acum;
+		logic [3:0] tail_inc;
+		tail_inc = tail;
 		acum = '0;
 		f_list_allocated <= '0; // for XOR later on flist since commit can free
 		f_list_dup = f_list^f_list_freed; // needed to see what can actually be used
@@ -82,8 +84,8 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 			if (!uops[i].faulted && (|uops[i])) begin // don't fill up rename table if invalid opcode
 				rob_ent_val[i] <= 1'b1;
 				renamed[i] <= uops[i]; // copy uop
-				renamed[i].rob_id <= tail;
-				tail <= tail + 1;
+				renamed[i].rob_id <= tail_inc;
+				tail_inc = tail_inc + 1;
 				if (uops[i].src1_valid) begin
 					renamed[i].src1_reg <= rename_table[uops[i].src1_reg]; // update areg to preg
 				end
@@ -128,13 +130,14 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 				rob_ent_val[i] <= 1'b1;
 				rob_entries[i] <= '1; // will check in ROB
 				renamed[i] <= '0; // replace with NOP
-				renamed[i].rob_id <= tail;
-				tail = tail + 1;
+				renamed[i].rob_id <= tail_inc;
+				tail_inc = tail_inc + 1;
 			end else begin
 				renamed[i] <= '0; // we have to pass forward nops
 				rob_ent_val[i] <= 1'b0;
 			end
 		end
+		tail <= tail_inc;
 		f_list <= f_list_dup;
 	end
 end
