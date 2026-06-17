@@ -3,12 +3,13 @@
 module alu_tb;
     int fd;
     string line;
+    int ignore_sys_res;
 
     reg clk   = '0;
     reg reset = '0;
     reg valid = '0;
     uop_t uop = '0;
-    post_ex_uop_t uop_out = '0;
+    post_ex_uop_t uop_out;
     reg [31:0] src_1 = '0;
     reg [31:0] src_2 = '0;
     reg [31:0] dst_exp = '0;
@@ -16,7 +17,7 @@ module alu_tb;
     always #10 clk = ~clk;
     
     alu dut (.clk(clk), .CPU_RESET_n(reset), .uop(uop), .valid(valid),
-        .src_1(src_1), .src_2(src_2), .uop_out(uop_out));
+        .src_1(src_1), .src_2(src_2), .uop_out(uop_out), .flush(1'b0));
 
     task reset_stage();
         uop = '0;
@@ -30,18 +31,18 @@ module alu_tb;
         uop = '0;
         fd = $fopen("testcases/alu/arith_full.txt", "r");
         while ($fgets(line, fd)) begin
-            $sscanf(line, "%b %b %h %b %h %b %h %h", uop.op_type, uop.op, 
+            ignore_sys_res = $sscanf(line, "%b %b %h %b %h %b %h %h", uop.op_type, uop.op, 
                 src_1, uop.src1_valid, src_2, uop.src2_valid,
                 dst_exp, uop.immediate);
             @(posedge clk);
             #1
             assert (uop_out.dst_val == dst_exp)
-                else $fatal("Destination wrong for %s\ngot: %h, expected: %h\n", line, uop_out.dst_val, dst_exp);
+                else $fatal(1, "Destination wrong for %s\ngot: %h, expected: %h\n", line, uop_out.dst_val, dst_exp);
             assert (uop_out.faulted == 1'b0 && 
                     uop_out.rob_id == uop.rob_id &&
                     uop_out.dst_reg == uop.dst_reg &&
                     uop_out.was_jmp == 1'b0)
-                else $fatal("Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
+                else $fatal(1, "Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
         end
     endtask
 
@@ -51,7 +52,7 @@ module alu_tb;
         #1
         assert (uop_out.valid == 1'b0)
             else 
-                $fatal("ALU incorrectly marked output as valid!\n");
+                $fatal(1, "ALU incorrectly marked output as valid!\n");
     endtask
 
     task test_load();
@@ -62,12 +63,12 @@ module alu_tb;
         @(posedge clk);
         #1;
         assert (uop_out.dst_val == {12'b111011101001, {12{1'b0}}})
-            else $fatal("Load result, %b, doesn't match expected, %b\n", uop_out.dst_val, {12'b111011101001, {12{1'b0}}});
+            else $fatal(1, "Load result, %b, doesn't match expected, %b\n", uop_out.dst_val, {12'b111011101001, {12{1'b0}}});
         assert (uop_out.faulted == 1'b0 && 
                 uop_out.rob_id == uop.rob_id &&
                 uop_out.dst_reg == uop.dst_reg &&
                 uop_out.was_jmp == 1'b0)
-            else $fatal("Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
+            else $fatal(1, "Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
         uop = '0;
         uop.op_type = 3'b111;
         uop.immediate = 12'b111011101001;
@@ -75,12 +76,12 @@ module alu_tb;
         @(posedge clk);
         #1;
         assert (uop_out.dst_val == (uop.pc+{12'b111011101001, {12{1'b0}}}))
-            else $fatal("Load result, %b, doesn't match expected, %b\n", uop_out.dst_val, {12'b111011101001, {12{1'b0}}});
+            else $fatal(1, "Load result, %b, doesn't match expected, %b\n", uop_out.dst_val, {12'b111011101001, {12{1'b0}}});
         assert (uop_out.faulted == 1'b0 && 
                 uop_out.rob_id == uop.rob_id &&
                 uop_out.dst_reg == uop.dst_reg &&
                 uop_out.was_jmp == 1'b0)
-            else $fatal("Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
+            else $fatal(1, "Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
         
     endtask
 
@@ -96,12 +97,12 @@ module alu_tb;
         @(posedge clk);
         #1;
         assert (uop_out.dst_val == (32'h62d738f6-32'b11011101001))
-            else $fatal("addi result, %h, doesn't match expected, %h\n", uop_out.dst_val, (32'h62d738f6-32'b11011101001));
+            else $fatal(1, "addi result, %h, doesn't match expected, %h\n", uop_out.dst_val, (32'h62d738f6-32'b11011101001));
         assert (uop_out.faulted == 1'b0 && 
                 uop_out.rob_id == uop.rob_id &&
                 uop_out.dst_reg == uop.dst_reg &&
                 uop_out.was_jmp == 1'b0)
-            else $fatal("Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
+            else $fatal(1, "Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
     endtask
 
     task test_condtionals();
@@ -116,12 +117,12 @@ module alu_tb;
         @(posedge clk);
         #1;
         assert (uop_out.taken == (src_1 < src_2))
-            else $fatal("BLT result, %b, doesn't match expected, %b\n", uop_out.taken, (src_1 < src_2));
+            else $fatal(1, "BLT result, %b, doesn't match expected, %b\n", uop_out.taken, (src_1 < src_2));
         assert (uop_out.faulted == 1'b0 && 
                 uop_out.rob_id == uop.rob_id &&
                 uop_out.dst_reg == uop.dst_reg &&
                 uop_out.was_jmp == 1'b1)
-            else $fatal("Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
+            else $fatal(1, "Something about the uop changed which shouldn't have \noriginal :%b \nrecieved: %b\nline: %s\n", uop, uop_out, line);
 
     endtask
 

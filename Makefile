@@ -1,4 +1,4 @@
-all: decode_tb rename_tb issue_tb alu_tb
+all: decode_tb rename_tb issue_tb alu_tb agu_tb
 
 decode_tb: src/decode.sv tb/decode_tb.sv
 	vlib work

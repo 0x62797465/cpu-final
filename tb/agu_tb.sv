@@ -29,7 +29,7 @@ module agu_tb;
     agu dut (.clk(clk), .CPU_RESET_n(CPU_RESET_n), .uop(uop), .valid(valid), 
         .src_1(src_1), .src_2(src_2), .retire_rob_id(retire_rob_id), 
         .retire_rob_valid(retire_rob_valid), .uop_out(uop_out), 
-        .agu_ready(agu_ready));
+        .agu_ready(agu_ready), .flush(1'b0));
     
     task reset_unit();
         CPU_RESET_n = 0;
@@ -64,7 +64,7 @@ module agu_tb;
         pregs_internal = '0;
         pregs_tb = '0;
         addr = '0;
-        for (int a = 0; a < 1000000; a++) begin
+        for (int a = 0; a < 10000; a++) begin
             @(negedge clk);
             if (rob_tail == rob_head) begin
                 if (prev_mem_valid) begin

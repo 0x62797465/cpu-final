@@ -2,31 +2,32 @@
 
 module issue_tb;
     int fd, fd_expected;
-    int a, b, i;
+    int i;
+    int ignore_sys_res;
     string line, line_expected;
     reg [263:0] expected_out;
-    reg clk = '0;
+    reg clk;
     reg reset = '1;
-    uop_t [1:0] uops_renamed = '0;
-    reg [63:0] p_reg_ready = '0;
-    reg [3:0] head = '0;
+    uop_t [1:0] uops_renamed;
+    reg [63:0] p_reg_ready;
+    reg [3:0] head;
 
-    reg last_cycle_stall_reason = '0;
-    uop_t alu_1_uop = '0;
-    uop_t alu_2_uop = '0;
-    uop_t agu_uop = '0;
-    reg should_unstall = '0;
-    reg alu_1_valid = '0;
-    reg alu_2_valid = '0;
-    reg agu_valid = '0;
-    reg agu_ready = '0;
-    reg why_stall = '0;
+    reg last_cycle_stall_reason;
+    uop_t alu_1_uop;
+    uop_t alu_2_uop;
+    uop_t agu_uop;
+    reg should_unstall;
+    reg alu_1_valid;
+    reg alu_2_valid;
+    reg agu_valid;
+    reg agu_ready;
+    reg why_stall;
     always #10 clk = ~clk;
 
     issue dut (.clk(clk), .CPU_RESET_n(reset), .uops_renamed(uops_renamed), .agu_ready(agu_ready),
         .p_reg_ready(p_reg_ready), .head(head), .alu_1_uop(alu_1_uop), .alu_2_uop(alu_2_uop), 
         .alu_1_valid(alu_1_valid), .alu_2_valid(alu_2_valid), .agu_uop(agu_uop),
-        .agu_valid(agu_valid), .stall_backwards(stall_backwards));
+        .agu_valid(agu_valid), .stall_backwards(stall_backwards), .flush(1'b0));
 
     task reset_stage();
         reset = 0;
@@ -58,8 +59,8 @@ module issue_tb;
         fd_expected = $fopen("testcases/issue/alu_stall_expected.txt", "r");
         while ($fgets(line, fd) && $fgets(line_expected, fd_expected)) begin
             shouldstall();
-            $sscanf(line, "%h %h", uops_renamed[0], uops_renamed[1]);
-            $sscanf(line_expected, "%h", expected_out);
+            ignore_sys_res = $sscanf(line, "%h %h", uops_renamed[0], uops_renamed[1]);
+            ignore_sys_res = $sscanf(line_expected, "%h", expected_out);
             agu_ready <= '0;
             @(posedge clk)
             #1
@@ -67,7 +68,7 @@ module issue_tb;
                 else 
                     $fatal("Output does not match expected, expected: %h output: %h\n", expected_out, {alu_1_uop, alu_2_uop, alu_1_valid, alu_2_valid, agu_uop, agu_valid, stall_backwards});
             if (stall_backwards) begin
-                for (a = 0; a < 8; a = a + 1) begin
+                for (int a = 0; a < 8; a = a + 1) begin
                     if ((!dut.alu_uops_fl[a])) begin 
                         if (dut.alu_issue_queue[a].src1_valid) begin
                             p_reg_ready[dut.alu_issue_queue[a].src1_reg] <= 1'b1;
@@ -90,11 +91,11 @@ module issue_tb;
         while (i) begin // && $fgets(line_expected, fd_expected)) begin
             shouldstall();
             if (!stall_backwards) begin
-                $sscanf(line, "%h %h", uops_renamed[0], uops_renamed[1]);
+                ignore_sys_res = $sscanf(line, "%h %h", uops_renamed[0], uops_renamed[1]);
                 i = $fgets(line, fd); // an iq too high?
             end
-            $fgets(line_expected, fd_expected);
-            $sscanf(line_expected, "%h", expected_out);
+            ignore_sys_res = $fgets(line_expected, fd_expected);
+            ignore_sys_res = $sscanf(line_expected, "%h", expected_out);
             @(negedge clk)
 
             why_stall = ($countones(dut.alu_uops_fl) <= 5);
@@ -103,7 +104,7 @@ module issue_tb;
             agu_uop, agu_valid, agu_ready, stall_backwards, 
             why_stall})
                 else 
-                    $fatal("Output does not match expected, expected: %b output: %b\n",
+                    $fatal(1, "Output does not match expected, expected: %b output: %b\n",
                      expected_out, {alu_1_uop, alu_2_uop, alu_1_valid, alu_2_valid, 
                     agu_uop, agu_valid, agu_ready, stall_backwards, 
                     why_stall});
@@ -125,7 +126,7 @@ module issue_tb;
             end
 
             if (stall_backwards && why_stall) begin
-                for (a = 0; a < 8; a = a + 1) begin
+                for (int a = 0; a < 8; a = a + 1) begin
                     if ((!dut.alu_uops_fl[a])) begin
                         if (dut.alu_issue_queue[a].src1_valid) begin
                             p_reg_ready[dut.alu_issue_queue[a].src1_reg] <= 1'b1;
