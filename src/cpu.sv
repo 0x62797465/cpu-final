@@ -240,9 +240,7 @@ issue issue (
       .CPU_RESET_n(CPU_RESET_n),
       .uops_renamed(uops_renamed),
       .agu_ready(agu_ready), // needed because variable-cycle since we check LSQ and BRAM
-      .p_reg_ready(p_reg_ready), // signals what's ready, all units are single cycle (except mem, which is flip-flopped) so their status is not passed through
-      .head(head), // needed for oldest-instruction calculation
-      // no stall input needed; it can only stall itself; may be wrong due to loading stage needing everything to shut up
+      .p_reg_ready(p_reg_ready), // signals what's ready
 
       // outputs
       .alu_1_uop(alu_1_uop),
@@ -316,5 +314,21 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
       end
 end 
 
+retire retire (
+      .clk(`CLK),
+      .reset(CPU_RESET_n),
+      .rob_entries(rob_entries),
+      .rob_ent_val(rob_ent_val),
+      .ex_uops(ex_uops),
+
+      .head(head),
+      .a_reg_state(a_reg_state), 
+      .new_pc(new_pc),
+      .flush(flush), // misspred handiling
+      .halt(halt), // if we retire faulted
+      .f_list_freed(f_list_freed),
+      .retire_rob_id(retire_rob_id),
+      .retire_rob_valid(retire_rob_valid)
+);
 
 endmodule

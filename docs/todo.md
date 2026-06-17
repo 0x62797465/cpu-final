@@ -1,12 +1,3 @@
-# ROB stuff
-Write rob entry (coming from rename)
-Handle mispredictions
-Update internal free list based off rename allocations
-Output freed freelist
-Update head
-Handle faults (should we make it trigger an LED on the FPGA?)
-Handle a possible termination?
-
 # Testbench
 See if misprediction is triggered (testing will be left for entire CPU module testbench)
 Make sure free list remains consistent (should be similar to the one in rename)

@@ -58,7 +58,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		for (int i = 0; i < 64; i++) begin
 			acum = acum + tmp_flist[i];
 		end
-		if (acum >= 3) begin
+		if (acum >= 3 && (head-tail > 3)) begin
 			stall_backwards <= '0;
 		end
 		f_list <= f_list^f_list_freed;
@@ -76,7 +76,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		for (int i = 0; i < 64; i++) begin
 			acum = acum + f_list_dup[i];
 		end
-		if (acum <= 3) begin // basically tells everything else 
+		if (acum <= 3 || ((head-tail <= 3) && (head != tail))) begin // basically tells everything else 
 			stall_backwards <= '1;                            // to process remaining instructions
 		end // the or condition prevents a perm-stall that would occur
 		for (i = 0; i < 2; i = i + 1) begin // operate on all 2 uops
