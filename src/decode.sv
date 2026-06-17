@@ -3,6 +3,7 @@
 module decode (
         input              clk,
 		input              CPU_RESET_n,
+		input              flush,
 		input              stall,
 		input  [31:0]      prev_fetch_addr,
 		input              n_valid,
@@ -34,7 +35,7 @@ reg [31:0] prev_prev_fetch_addr = '0;
 reg just_jumped = 0;
 
 always @(posedge clk or negedge CPU_RESET_n) begin
-	if (!CPU_RESET_n) begin
+	if (!CPU_RESET_n || flush) begin
 		uops <= '0;
 		just_jumped <= '0;
 	end else begin
