@@ -18,12 +18,13 @@ module alu (
     input               valid,
     input reg [31:0]    src_1,
     input reg [31:0]    src_2,
+    input               flush,
 
     output var post_ex_uop_t uop_out
 );
 logic was_taken = '0;
 always @(posedge clk or negedge CPU_RESET_n) begin
-	if (!CPU_RESET_n) begin
+	if (!CPU_RESET_n || flush) begin
         uop_out <= '0;
     end else if (valid) begin
         was_taken = 0;

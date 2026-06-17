@@ -7,6 +7,7 @@ module issue (
 		input  reg       [63:0]    p_reg_ready,
         input  reg       [3:0]     head,
         input                      agu_ready,
+        input                      flush,
 
         output var uop_t           alu_1_uop,
         output reg                 alu_1_valid,
@@ -26,7 +27,7 @@ uop_t [7:0] alu_issue_queue = '0;
 reg [7:0] alu_uops_fl = '1;
 
 always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
-    if (!CPU_RESET_n) begin
+    if (!CPU_RESET_n || flush) begin
         alu_uops_fl <= '1;
         mem_head <= '0;
         mem_tail <= '0;

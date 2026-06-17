@@ -58,6 +58,7 @@ module agu (
     input reg [31:0] src_2,
     input var [3:0]  retire_rob_id,
     input var        retire_rob_valid,
+    input            flush,
 
     output var post_ex_uop_t uop_out,
     output reg       agu_ready
@@ -86,7 +87,7 @@ reg [3:0] mask_needed;
 reg [31:0] data;
 
 always @(posedge clk or negedge CPU_RESET_n) begin
-    if (!CPU_RESET_n) 
+    if (!CPU_RESET_n || flush) 
         f_list <= '1;
     else
         f_list <= f_list ^ f_list_freed ^ f_list_allocated;
@@ -134,7 +135,7 @@ defparam
 `endif
 
 always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
-    if (!CPU_RESET_n) begin 
+    if (!CPU_RESET_n || flush) begin 
         write_enable <= '0;
         f_list_freed <= '0;
     end else begin
@@ -171,7 +172,7 @@ end
 assign n_stall = ( f_count > 2); // prevents LSQ overflow
 
 always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multiple drivers
-    if (!CPU_RESET_n) begin
+    if (!CPU_RESET_n || flush) begin
         queue = '0;
         f_list_allocated <= 1'b0;
         agu_ready <= 1;

@@ -16,6 +16,8 @@ module rename (
 		input            [3:0]     head,
 		input  var uop_t [1:0]     uops,
 		input  reg       [63:0]    f_list_freed,
+		input                      flush,
+		input  var    [31:0] [5:0] a_reg_state,
 
 		output reg       [63:0]    f_list_allocated, // needed due to wb ready-ing p-regs and ROB freeing using previous physical register, what to do during misspredict?
 		output var uop_t [1:0]     renamed,
@@ -25,27 +27,29 @@ module rename (
 		output reg                 stall_backwards
 );
 
-integer reset_rt;
-integer i;
-integer a;
-
 reg [5:0] allocated_preg;
 reg [63:0] f_list_dup;
 reg [63:0] f_list;
 reg [31:0] [5:0] rename_table; // what register maps to what physical register
 
 always @(posedge clk or negedge CPU_RESET_n) begin
-	if (!CPU_RESET_n) begin
+	if (!CPU_RESET_n||flush) begin
 		f_list_allocated <= '0;
 		rob_entries <= '0;
     	f_list <= {{63{1'b1}},1'b0};
 		stall_backwards <= '0;
-		for (reset_rt = 0; reset_rt < 32; reset_rt = reset_rt + 1) begin
+		for (int reset_rt = 0; reset_rt < 32; reset_rt++) begin
 			rename_table[reset_rt] = '0; // read from 0 if unitialized
 		end
 		renamed <= '{default: '0};
 		tail <= '0;
 		rob_ent_val <= '0;
+		if (flush) begin
+			for (int reset_rt = 0; reset_rt < 32; reset_rt++) begin
+				rename_table[reset_rt] = a_reg_state[reset_rt];
+				f_list[a_reg_state[reset_rt]] <= 1'b0;
+			end
+		end
 	end else if (stall) begin
 		f_list <= f_list^f_list_freed;
 		f_list_allocated <= '0;
@@ -79,7 +83,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		if (acum <= 3 || ((head-tail <= 3) && (head != tail))) begin // basically tells everything else 
 			stall_backwards <= '1;                            // to process remaining instructions
 		end // the or condition prevents a perm-stall that would occur
-		for (i = 0; i < 2; i = i + 1) begin // operate on all 2 uops
+		for (int i = 0; i < 2; i++) begin // operate on all 2 uops
 			allocated_preg = 0;
 			if (!uops[i].faulted && (|uops[i])) begin // don't fill up rename table if invalid opcode
 				rob_ent_val[i] <= 1'b1;
@@ -94,7 +98,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 				end
 				if (uops[i].dst_valid) begin
 					if (uops[i].dst_reg != 0) begin
-						for (a = 0; a < 64; a = a + 1) begin // finds free physical register, should be auto-optimized to something better
+						for (int a = 0; a < 64; a++) begin // finds free physical register, should be auto-optimized to something better
 							if (f_list_dup[a] == 1'b1) begin
 								allocated_preg = 6'(a);
 								f_list_dup[a] = 1'b0; // allocates it

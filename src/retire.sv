@@ -9,7 +9,7 @@ module retire (
     //input tail,
 
     output reg [3:0] head,
-    output reg [5:0] [31:0] a_reg_state,
+    output reg [31:0] [5:0] a_reg_state,
     output reg [31:0] new_pc,
     output reg flush, // misspred handiling
     output reg halt, // if we retire faulted

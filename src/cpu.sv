@@ -151,6 +151,7 @@ reg [1:0] [31:0] predecode_instr;
 
 reg STALL_FROM_RENAME = 0;
 reg STALL_FROM_ISSUE = 0;
+reg flush = 0;
 
 reg n_first_valid = 0;
 reg jmp = 0;
@@ -159,7 +160,9 @@ reg [31:0] prev_fetch_addr = 0;
 always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
             fetch_addr <= 0;
-      end else begin
+      end else if (flush)
+            fetch_addr <= new_pc;
+      else begin
             if (!(STALL_FROM_RENAME|STALL_FROM_ISSUE)) begin
                   n_first_valid <= 1'b0;
                   if (jmp) begin
@@ -180,6 +183,7 @@ end
 uop_t [1:0] uops_prerename;
 decode decode (
 	.clk(`CLK),
+      .flush(flush),
 	.CPU_RESET_n(CPU_RESET_n),
       .n_valid(n_first_valid),
 	.instructions(predecode_instr),
@@ -214,6 +218,8 @@ rename rename (
 	.uops(uops_prerename),
       .f_list_freed(f_list_freed),
       .stall(STALL_FROM_ISSUE),
+      .a_reg_state(a_reg_state),
+      .flush(flush),
 
       // outputs
       .f_list_allocated(f_list_allocated), // list of pregs allocated by rename
@@ -241,6 +247,7 @@ issue issue (
       .uops_renamed(uops_renamed),
       .agu_ready(agu_ready), // needed because variable-cycle since we check LSQ and BRAM
       .p_reg_ready(p_reg_ready), // signals what's ready
+      .flush(flush),
 
       // outputs
       .alu_1_uop(alu_1_uop),
@@ -261,6 +268,7 @@ alu alu_1 (
       .valid(alu_1_valid),
       .src_1(p_regs[alu_1_uop.src1_reg]),
       .src_2(p_regs[alu_1_uop.src2_reg]),
+      .flush(flush),
 
       // outputs
       .uop_out(ex_uops[0])
@@ -274,6 +282,7 @@ alu alu_2 (
       .valid(alu_2_valid),
       .src_1(p_regs[alu_2_uop.src1_reg]),
       .src_2(p_regs[alu_2_uop.src2_reg]),
+      .flush(flush),
 
       // outputs
       .uop_out(ex_uops[1])
@@ -291,6 +300,7 @@ agu agu (
       .src_2(p_regs[agu_uop.src2_reg]),
       .retire_rob_id(retire_rob_id),
       .retire_rob_valid(retire_rob_valid),
+      .flush(flush),
 
       .uop_out(ex_uops[2]),
       .agu_ready(agu_ready)
@@ -300,7 +310,7 @@ agu agu (
 always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
             p_regs <= 1'b0;
-      end else begin 
+      end else if (!flush) begin 
             for (int i = 0; i < 3; i++) begin
                   if (ex_uops[i].valid 
                   && ex_uops[i].dst_valid 
