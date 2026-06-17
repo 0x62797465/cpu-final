@@ -5,7 +5,6 @@ module issue (
 		input                      CPU_RESET_n,
 		input  var uop_t [1:0]     uops_renamed,
 		input  reg       [63:0]    p_reg_ready,
-        input  reg       [3:0]     head,
         input                      agu_ready,
         input                      flush,
 

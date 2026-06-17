@@ -132,7 +132,8 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 				end
 			end else if (|uops[i]) begin
 				rob_ent_val[i] <= 1'b1;
-				rob_entries[i] <= '1; // will check in ROB
+				rob_entries[i] <= '0; 
+				rob_entries[i].faulted <= 1'b1;
 				renamed[i] <= '0; // replace with NOP
 				renamed[i].rob_id <= tail_inc;
 				tail_inc = tail_inc + 1;

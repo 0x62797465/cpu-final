@@ -143,7 +143,7 @@ module cpu(
 `define CLK CLOCK_50_B5B
 
 // note: this will get split across two blocks due to the wide read; m10k only support 32 bit for dual port/single port
-(* ram_style = "block" *) reg [31:0] mem [4095:0]; // memory, 32 * 4096 bits, or 16kb
+(* ramstyle = "M10K" *) reg [31:0] mem [4095:0]; // memory, 32 * 4096 bits, or 16kb
 
 reg [31:0] fetch_addr = 32'b0; // pointer to mem for instruction fetch
 
@@ -156,12 +156,13 @@ reg flush = 0;
 reg n_first_valid = 0;
 reg jmp = 0;
 reg [31:0] new_pc = 0;
+reg [31:0] new_flush_pc = 0;
 reg [31:0] prev_fetch_addr = 0;
 always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
             fetch_addr <= 0;
       end else if (flush)
-            fetch_addr <= new_pc;
+            fetch_addr <= new_flush_pc;
       else begin
             if (!(STALL_FROM_RENAME|STALL_FROM_ISSUE)) begin
                   n_first_valid <= 1'b0;
@@ -311,16 +312,18 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
             p_regs <= 1'b0;
       end else if (!flush) begin 
+            logic [63:0] p_reg_ready_tmp;
+            p_reg_ready_tmp = p_reg_ready & ~f_list_allocated; // just allocated == not yet ready
             for (int i = 0; i < 3; i++) begin
                   if (ex_uops[i].valid 
                   && ex_uops[i].dst_valid 
                   && !ex_uops[i].faulted
                   && (ex_uops[i].dst_reg != 0)) begin
                         p_regs[ex_uops[i].dst_reg] <= ex_uops[i].dst_val;
-                        p_reg_ready[ex_uops[i].dst_reg] <= 1'b1;
+                        p_reg_ready_tmp[ex_uops[i].dst_reg] = 1'b1;
                   end
             end
-            p_reg_ready <= p_reg_ready & ~f_list_allocated; // just allocated == not yet ready
+            p_reg_ready <= p_reg_ready_tmp;
       end
 end 
 
@@ -333,7 +336,7 @@ retire retire (
 
       .head(head),
       .a_reg_state(a_reg_state), 
-      .new_pc(new_pc),
+      .new_pc(new_flush_pc),
       .flush(flush), // misspred handiling
       .halt(halt), // if we retire faulted
       .f_list_freed(f_list_freed),

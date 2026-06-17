@@ -41,7 +41,8 @@ always @(posedge clk or negedge reset) begin
                 rob[ex_uops[i].rob_id].misspredict <= (ex_uops[i].was_jmp && 
                     (ex_uops[i].pred_taken != ex_uops[i].taken));
                 rob[ex_uops[i].rob_id].finished <= 1'b1;
-                rob[ex_uops[i].rob_id].new_pc <= rob[ex_uops[i].rob_id].new_pc;
+                rob[ex_uops[i].rob_id].new_pc <= ex_uops[i].new_pc;
+                rob[ex_uops[i].rob_id].faulted <= ex_uops[i].faulted;
             end
         end
     end
@@ -54,6 +55,7 @@ always @(posedge clk or negedge reset) begin
         f_list_freed = '0;
         flush <= '0;
         new_pc <= '0;
+        halt <= '0;
         if (!reset) begin
             a_reg_state = '0;
         end
@@ -66,6 +68,8 @@ always @(posedge clk or negedge reset) begin
         retire_rob_valid <= 0;
         for (int i = 0; i < 2; i++) begin // subject to change
             if (prev_ready && rob[tmp_head].finished) begin
+                if (rob[tmp_head].faulted)
+                    halt <= 1'b1;
                 if (rob[tmp_head].store) begin
                     prev_ready = 0;
                     retire_rob_valid <= 1;

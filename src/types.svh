@@ -23,7 +23,8 @@ typedef struct packed {
 	logic [5:0] pp_dst_reg;// for freeing
 	logic [5:0] p_dst_reg;// to update architectural state
 	logic       misspredict;
-	logic [31:0]     new_pc; // for mispred
+	logic [31:0]new_pc; // for mispred
+	logic       faulted;
 } rob_ent_t;
 
 typedef struct packed {
