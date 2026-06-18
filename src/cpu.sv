@@ -146,8 +146,10 @@ module cpu(
 (* ramstyle = "M10K" *) reg [31:0] mem [4095:0]; // memory, 32 * 4096 bits, or 16kb
 
 reg [31:0] fetch_addr = 32'b0; // pointer to mem for instruction fetch
+reg halt;
 
 reg [1:0] [31:0] predecode_instr; 
+reg [31:0] [5:0] a_reg_state;
 
 reg STALL_FROM_RENAME = 0;
 reg STALL_FROM_ISSUE = 0;
@@ -196,21 +198,21 @@ decode decode (
       .jmp(jmp)
 );
 
-reg [63:0] [31:0] p_regs = '0; // 64 32 bit physical registers
+reg [63:0] [31:0] p_regs; // 64 32 bit physical registers
 // every register is initally pointing towards the 0th reg
 // so when we need to write somwhere we change the preg to
 // something marked as not written back for a safe initial 
 // state
-reg [63:0] p_reg_ready = {{63{1'b0}},1'b1}; // written back
+reg [63:0] p_reg_ready; // written back
 
-reg [63:0] f_list_allocated = '0; // what regs are free
-reg [63:0] f_list_freed = '0; // for ROB
-reg [3:0] tail = 0; // for ROB
-reg [3:0] head = 0;
+reg [63:0] f_list_allocated; // what regs are free
+reg [63:0] f_list_freed; // for ROB
+reg [3:0] tail; // for ROB
+reg [3:0] head;
 
-uop_t [1:0] uops_renamed = '0;
-rob_ent_t [1:0] rob_entries = '0;
-reg [1:0] rob_ent_val = '0;
+uop_t [1:0] uops_renamed;
+rob_ent_t [1:0] rob_entries;
+reg [1:0] rob_ent_val;
 rename rename (
       // inputs
 	.clk(`CLK),
@@ -231,15 +233,15 @@ rename rename (
 	.stall_backwards(STALL_FROM_RENAME) // incase not enough free regs are available
 );
 
-uop_t alu_1_uop = '0;
-uop_t alu_2_uop = '0;
-uop_t agu_uop = '0;
+uop_t alu_1_uop;
+uop_t alu_2_uop;
+uop_t agu_uop;
 
-reg alu_1_valid = '0;
-reg alu_2_valid = '0;
-reg agu_valid = '0;
+reg alu_1_valid;
+reg alu_2_valid;
+reg agu_valid;
 
-reg agu_ready = '1; // is unit ready
+reg agu_ready; // is unit ready
 
 issue issue (
       // inputs
@@ -289,8 +291,8 @@ alu alu_2 (
       .uop_out(ex_uops[1])
 );
 
-reg [3:0] retire_rob_id = '0;
-reg retire_rob_valid = 0;
+reg [3:0] retire_rob_id;
+reg retire_rob_valid;
 
 agu agu (
       .clk(`CLK),
@@ -310,7 +312,8 @@ agu agu (
 // writeback; very simple so no module
 always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
-            p_regs <= 1'b0;
+            p_regs <= '0;
+            p_reg_ready <= {{63{1'b0}},1'b1};
       end else if (!flush) begin 
             logic [63:0] p_reg_ready_tmp;
             p_reg_ready_tmp = p_reg_ready & ~f_list_allocated; // just allocated == not yet ready

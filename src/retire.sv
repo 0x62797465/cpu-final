@@ -68,8 +68,9 @@ always @(posedge clk or negedge reset) begin
         retire_rob_valid <= 0;
         for (int i = 0; i < 2; i++) begin // subject to change
             if (prev_ready && rob[tmp_head].finished) begin
-                if (rob[tmp_head].faulted)
+                if (rob[tmp_head].faulted) begin
                     halt <= 1'b1;
+                end
                 if (rob[tmp_head].store) begin
                     prev_ready = 0;
                     retire_rob_valid <= 1;
@@ -80,7 +81,8 @@ always @(posedge clk or negedge reset) begin
                     new_pc <= rob[tmp_head].new_pc;
                 end
                 if (rob[tmp_head].dst_valid) begin // not an else statement because misspredicted jumps can set regs
-                    f_list_freed[rob[tmp_head].pp_dst_reg] <= 1'b1;
+                    if (rob[tmp_head].pp_dst_reg) 
+                        f_list_freed[rob[tmp_head].pp_dst_reg] <= 1'b1;
                     a_reg_state[rob[tmp_head].a_dst_reg] <= rob[tmp_head].p_dst_reg;
                 end
                 tmp_head = tmp_head + 1;
