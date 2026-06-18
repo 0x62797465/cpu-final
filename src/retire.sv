@@ -59,7 +59,7 @@ always @(posedge clk or negedge reset) begin
         if (!reset) begin
             a_reg_state = '0;
         end
-    end else begin
+    end else if (!halt) begin // freezes architectural state on halt
         logic prev_ready;
         logic [3:0] tmp_head;
         f_list_freed <= '0;
@@ -75,7 +75,7 @@ always @(posedge clk or negedge reset) begin
                     retire_rob_valid <= 1;
                     retire_rob_id <= tmp_head;
                 end else if (rob[tmp_head].misspredict) begin
-                    flush <= 1'b1; // comment
+                    flush <= 1'b1; // comment 
                     prev_ready = 0;
                     new_pc <= rob[tmp_head].new_pc;
                 end
