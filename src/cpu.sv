@@ -156,7 +156,7 @@ reg STALL_FROM_ISSUE = 0;
 reg flush = 0;
 
 reg n_first_valid = 0;
-reg jmp = 0;
+reg jmp;
 reg [31:0] new_pc = 0;
 reg [31:0] new_flush_pc = 0;
 reg [31:0] prev_fetch_addr = 0;
@@ -168,6 +168,7 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
       else begin
             if (!(STALL_FROM_RENAME|STALL_FROM_ISSUE)) begin
                   n_first_valid <= 1'b0;
+                  $write("%h\n", prev_fetch_addr);
                   if (jmp) begin
                         prev_fetch_addr <= new_pc;
                         predecode_instr <= {mem[(new_pc>>2)+1], mem[(new_pc>>2)]};

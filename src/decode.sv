@@ -36,6 +36,7 @@ reg just_jumped = 0;
 
 always @(posedge clk or negedge CPU_RESET_n) begin
 	if (!CPU_RESET_n || flush) begin
+		jmp <= 1'b0;
 		uops <= '0;
 		just_jumped <= '1; // cycle delay during reset
 	end else begin
