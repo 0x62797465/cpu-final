@@ -86,6 +86,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		for (int i = 0; i < 2; i++) begin // operate on all 2 uops
 			allocated_preg = 0;
 			if (!uops[i].faulted && (|uops[i])) begin // don't fill up rename table if invalid opcode
+				rob_entries[i].faulted <= 1'b0;
 				rob_ent_val[i] <= 1'b1;
 				renamed[i] <= uops[i]; // copy uop
 				renamed[i].rob_id <= tail_inc;

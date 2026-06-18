@@ -1,4 +1,4 @@
-all: decode_tb rename_tb issue_tb alu_tb agu_tb
+all: decode_tb rename_tb issue_tb alu_tb agu_tb retire_tb
 
 decode_tb: src/decode.sv tb/decode_tb.sv
 	vlib work
@@ -29,5 +29,11 @@ agu_tb: src/alu.sv tb/alu_tb.sv
 	vmap work work
 	vlog +define+sim -sv src/agu.sv tb/agu_tb.sv # This one is special because you need to pay intel money if you want write masking writes to BRAM to be infered
 	SALT_LICENSE_SERVER=~/Tools/LR-156275_License.dat vsim -suppress 12110 -quiet -c work.agu_tb -do "run -all; quit"
+
+retire_tb: src/retire.sv tb/retire_tb.sv
+	vlib work
+	vmap work work
+	vlog -sv src/retire.sv tb/retire_tb.sv
+	SALT_LICENSE_SERVER=~/Tools/LR-156275_License.dat vsim -suppress 12110 -quiet -c work.retire_tb -do "run -all; quit"
 
 

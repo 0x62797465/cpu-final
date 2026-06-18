@@ -42,7 +42,7 @@ always @(posedge clk or negedge reset) begin
                     (ex_uops[i].pred_taken != ex_uops[i].taken));
                 rob[ex_uops[i].rob_id].finished <= 1'b1;
                 rob[ex_uops[i].rob_id].new_pc <= ex_uops[i].new_pc;
-                rob[ex_uops[i].rob_id].faulted <= ex_uops[i].faulted;
+                rob[ex_uops[i].rob_id].faulted <= rob[ex_uops[i].rob_id].faulted | ex_uops[i].faulted;
             end
         end
     end
