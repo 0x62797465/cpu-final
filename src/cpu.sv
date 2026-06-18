@@ -192,7 +192,7 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
                         predecode_instr <= {mem[(fetch_addr>>2)+1], mem[(fetch_addr>>2)]};
                         fetch_addr <= fetch_addr + 8;
                   end
-            end
+            end 
       end
 end      
 

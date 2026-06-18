@@ -142,6 +142,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 					rob_entries[i].new_pc <= 32'b0;
 				end
 			end else if (|uops[i]) begin
+				amount_allocated = amount_allocated + 1;
 				rob_ent_val[i] <= 1'b1;
 				rob_entries[i] <= '0; 
 				rob_entries[i].faulted <= 1'b1;

@@ -1,4 +1,4 @@
-all: stack_test fib_test gcc_basic clean
+all: stack_test fib_test gcc_basic recursion_gcc clean
 
 stack_test:
 	riscv32-none-elf-as -march=rv32i stack.s -o test.o
@@ -11,8 +11,12 @@ fib_test:
 	riscv32-none-elf-objcopy -O binary test.elf fib.bin
 
 gcc_basic:
-	riscv32-none-elf-gcc -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -ffreestanding -Wl,-T,linker.ld startup.s test_gcc_basic.c -o test.elf
+	riscv32-none-elf-gcc -march=rv32i -mabi=ilp32 -mstrict-align -nostdlib -nostartfiles -ffreestanding -Wl,-T,linker.ld startup.s test_gcc_basic.c -o test.elf
 	riscv32-none-elf-objcopy -O binary test.elf test_gcc_basic.bin	
+
+recursion_gcc:
+	riscv32-none-elf-gcc -march=rv32i -mabi=ilp32 -mstrict-align -nostdlib -nostartfiles -ffreestanding -Wl,-T,linker.ld startup.s recursion_gcc.c -o test.elf
+	riscv32-none-elf-objcopy -O binary test.elf recursion.bin	
 
 clean:
 	rm test.o test.elf

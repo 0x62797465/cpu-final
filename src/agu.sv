@@ -145,6 +145,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
         prev_written_id <= '0;
     end else begin
         logic [7:0] f_list_tmp;
+        f_list_tmp = f_list ^ f_list_freed ^ f_list_allocated;
         f_list_freed <= '0;
         if (prev_written) begin
             f_list_freed[prev_written_id] <= 1'b1;
@@ -154,11 +155,10 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
         queue_mask <= '0;
         queue_addr <= '0;
         queue_data <= '0;
-        f_list_tmp = f_list ^ f_list_freed ^ f_list_allocated;
         if (retire_rob_valid) begin
             write_enable <= 1;
             for (int i = 0; i < 8; i++) begin
-                if (queue[i].rob_id == retire_rob_id && !f_list_tmp[i]) begin
+                if ((queue[i].rob_id == retire_rob_id) && !f_list_tmp[i]) begin
                     queue_mask <= queue[i].mask;
                     queue_addr <= queue[i].addr>>2;
                     queue_data <= queue[i].data;

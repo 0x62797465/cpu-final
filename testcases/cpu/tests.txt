@@ -1,3 +1,4 @@
 fib.bin 00001a6d
 stack.bin 00000043
 test_gcc_basic.bin 15
+recursion.bin 2
