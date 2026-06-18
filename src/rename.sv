@@ -110,7 +110,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 					end else  
 						allocated_preg = 6'b0; // mem to 0 needs to actually execute so we can fault if bad access
 					rob_entries[i].finished <= 1'b0;
-					rob_entries[i].spec <= (uops[i].op_type == 3'b010 || uops[i].op_type == 3'b100);
+					rob_entries[i].spec <= (uops[i].op_type == 3'b100);
 					rob_entries[i].store <= (uops[i].op_type == 3'b011);
 					rob_entries[i].dst_valid <= 1'b1;
 					rob_entries[i].a_dst_reg <= uops[i].dst_reg;
@@ -122,7 +122,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 					renamed[i].dst_reg <= allocated_preg; // updates uop to reflect real physical register
 				end else begin 
 					rob_entries[i].finished <= 1'b0;
-					rob_entries[i].spec <= (uops[i].op_type == 3'b010 || uops[i].op_type == 3'b100);
+					rob_entries[i].spec <= (uops[i].op_type == 3'b100);
 					rob_entries[i].store <= (uops[i].op_type == 3'b011);
 					rob_entries[i].dst_valid <= 1'b0;
 					rob_entries[i].a_dst_reg <= 6'b0;

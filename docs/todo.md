@@ -1,10 +1,3 @@
-# Testbench
-See if misprediction is triggered (testing will be left for entire CPU module testbench)
-Make sure free list remains consistent (should be similar to the one in rename)
-Make sure outputted freelist is correct
-Make sure the head is consistent
-Test if faulting is triggered correctly
-
 # Misc
 Add UART to a certain address and testbench
 

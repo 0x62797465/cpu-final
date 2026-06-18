@@ -6,6 +6,8 @@ module decode (
 		input              flush,
 		input              stall,
 		input  [31:0]      prev_fetch_addr,
+		input var [1:0] [1:0]taken,
+		input  [1:0]       update_btb,
 		input              n_valid,
 		input [1:0] [31:0] instructions,
 		output uop_t [1:0] uops,
@@ -24,8 +26,12 @@ localparam U_type = 7'b0110111; // load immediate
 localparam U_secondary_type = 7'b0010111; // load immediate plus PC
 integer i;
 
+reg [63:0] [1:0] btb;
+reg [15:0] [5:0] btb_ent_q; // contract states that prediction results come back in order
+reg [3:0] btb_head;
+reg [3:0] btb_tail;
+
 // todo:
-// handle jumps imediatly
 // multiply extension
 // atomic extension
 // environment calls/breaks
@@ -36,10 +42,33 @@ reg just_jumped = 0;
 
 always @(posedge clk or negedge CPU_RESET_n) begin
 	if (!CPU_RESET_n || flush) begin
+		if (!flush)
+			btb <= '0;
+		else begin
+			for (i = 0; i < 2; i = i + 1) begin
+				if (update_btb[i]) begin
+					if ((taken[i] == 2'b11 && btb[btb_ent_q[btb_head]] != 2'b00) 
+						|| (taken[i] == 2'b01 && btb[btb_ent_q[btb_head]] != 2'b11))
+							btb[btb_ent_q[btb_head]] <= btb[btb_ent_q[btb_head]] + taken[i]; // "taken" will be 1 or negative 1
+						btb_head = btb_head + 1;
+				end
+			end
+		end
+		btb_head <= '0;
+		btb_tail <= '0;
+		btb_ent_q <= '0;
 		jmp <= 1'b0;
 		uops <= '0;
 		just_jumped <= '1; // cycle delay during reset
 	end else begin
+		for (i = 0; i < 2; i = i + 1) begin
+			if (update_btb[i]) begin
+				if ((taken[i] == 2'b11 && btb[btb_ent_q[btb_head]] != 2'b00) 
+					|| (taken[i] == 2'b01 && btb[btb_ent_q[btb_head]] != 2'b11))
+						btb[btb_ent_q[btb_head]] <= btb[btb_ent_q[btb_head]] + taken[i]; // "taken" will be 1 or negative 1
+				btb_head = btb_head + 1;
+			end
+		end
 		if ((just_jumped && !stall)) begin
 			just_jumped <= 1'b0;
 			new_pc <= 1'b0;
@@ -122,6 +151,15 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 									uops[i].faulted <= 1;
 							end
 						B_type : begin // assigns src1, src2, and immediate
+								btb_ent_q[btb_tail] <= prev_fetch_addr + (i*4);
+								btb_tail = btb_tail + 1;
+								if (btb[{prev_fetch_addr + (i*4)}[5:0]][1]) begin
+									uops[i].pred_taken <= 1'b1;
+									just_jumped <= 1'b1; // so next cycle inserts bubbles
+									jumped = 1; // so next instruction becomes bubble
+									jmp <= 1'b1; // so fetch knows to update PC
+									new_pc <= prev_fetch_addr + (i*4) + {{20{instructions[i][31]}}, instructions[i][7], instructions[i][30:25], instructions[i][11:8], 1'b0};
+								end
 								uops[i].op_type <= 3'b100; // branch type
 								uops[i].op <= {1'b0, instructions[i][14:12]}; // extracts operation type from funct3
 								uops[i].src1_reg <= instructions[i][19:15];

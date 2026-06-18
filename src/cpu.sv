@@ -6,7 +6,7 @@
 `include "types.svh"
 
 module cpu(
-
+/*
       ///////// ADC ///////// 1.2 V ///////
       output             ADC_CONVST,
       output             ADC_SCK,
@@ -23,14 +23,16 @@ module cpu(
 
       ///////// CLOCK /////////
       input              CLOCK_125_p, ///LVDS
+*/
       input              CLOCK_50_B5B, ///3.3-V LVTTL
-      input              CLOCK_50_B6A,
+/*      input              CLOCK_50_B6A,
       input              CLOCK_50_B7A, ///2.5 V
       input              CLOCK_50_B8A,
 
       ///////// CPU /////////
+      */
       input              CPU_RESET_n, ///3.3V LVTTL
-
+/*
 `ifdef ENABLE_DDR2LP
       ///////// DDR2LP ///////// 1.2-V HSUL ///////
       output      [9:0]  DDR2LP_CA,
@@ -43,7 +45,7 @@ module cpu(
       inout       [3:0]  DDR2LP_DQS_n, ///DIFFERENTIAL 1.2-V HSUL
       inout       [3:0]  DDR2LP_DQS_p, ///DIFFERENTIAL 1.2-V HSUL
       input              DDR2LP_OCT_RZQ, ///1.2 V
-`endif /*ENABLE_DDR2LP*/
+`endif
 
 `ifdef ENABLE_GPIO
       ///////// GPIO ///////// 3.3-V LVTTL ///////
@@ -56,7 +58,7 @@ module cpu(
       output      [6:0]  HEX3,
 
 
-`endif /*ENABLE_GPIO*/
+`endif
 
       ///////// HDMI /////////
       output             HDMI_TX_CLK,
@@ -84,7 +86,7 @@ module cpu(
 `ifdef ENABLE_HSMC_XCVR
       input       [3:0]  HSMC_GXB_RX_p, /// 1.5-V PCML
       output      [3:0]  HSMC_GXB_TX_p, /// 1.5-V PCML
-`endif /*ENABLE_HSMC_XCVR*/
+`endif 
       inout       [16:0] HSMC_RX_n,
       inout       [16:0] HSMC_RX_p,
       inout       [16:0] HSMC_TX_n,
@@ -108,7 +110,7 @@ module cpu(
       ///////// REFCLK ///////// 1.5-V PCML ///////
       input              REFCLK_p0,
       input              REFCLK_p1,
-`endif /*ENABLE_REFCLK*/
+`endif 
 
       ///////// SD ///////// 3.3-V LVTTL ///////
       output             SD_CLK,
@@ -119,7 +121,7 @@ module cpu(
       ///////// SMA ///////// 1.5-V PCML ///////
       input              SMA_GXB_RX_p,
       output             SMA_GXB_TX_p,
-`endif /*ENABLE_SMA*/
+`endif 
 
       ///////// SRAM ///////// 3.3-V LVTTL ///////
       output      [17:0] SRAM_A,
@@ -132,7 +134,7 @@ module cpu(
 
       ///////// SW ///////// 1.2 V ///////
       input       [9:0]  SW,
-
+*/
       ///////// UART ///////// 2.5 V ///////
       input              UART_RX,
       output             UART_TX
@@ -157,21 +159,30 @@ reg flush = 0;
 
 reg n_first_valid = 0;
 reg jmp;
+reg [31:0] cycle_count = 0;
+reg [15:0] misspred_count = 0;
+reg [15:0] jump_count = 0;
 reg [31:0] new_pc = 0;
 reg [31:0] new_flush_pc = 0;
 reg [31:0] prev_fetch_addr = 0;
 always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
+            cycle_count <= 0;
             fetch_addr <= 0;
-      end else if (flush)
+            jump_count <= 0;
+            misspred_count <= 0;
+      end else if (flush) begin
+            misspred_count <= misspred_count + 1;
+            cycle_count <= cycle_count + 1;
             fetch_addr <= new_flush_pc;
-      else begin
+      end else begin
+            cycle_count <= cycle_count + 1;
             if (!(STALL_FROM_RENAME|STALL_FROM_ISSUE)) begin
                   n_first_valid <= 1'b0;
-                  $write("%h\n", prev_fetch_addr);
                   if (jmp) begin
+                        jump_count <= jump_count + 1;
                         prev_fetch_addr <= new_pc;
-                        predecode_instr <= {mem[(new_pc>>2)+1], mem[(new_pc>>2)]};
+                        predecode_instr <= {mem[({new_pc >> 3, 3'b000}>>2)+1], mem[({new_pc >> 3, 3'b000}>>2)]};
                         if ({new_pc >> 3, 3'b000} != new_pc)
                               n_first_valid <= 1'b1;
                         fetch_addr <= {new_pc >> 3, 3'b000} + 8;
@@ -184,11 +195,15 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
       end
 end      
 
+reg [1:0] update_btb;
+reg [1:0] [1:0] taken;
 uop_t [1:0] uops_prerename;
 decode decode (
 	.clk(`CLK),
       .flush(flush),
 	.CPU_RESET_n(CPU_RESET_n),
+      .update_btb(update_btb),
+      .taken(taken),
       .n_valid(n_first_valid),
 	.instructions(predecode_instr),
 	.prev_fetch_addr(prev_fetch_addr),
@@ -345,7 +360,9 @@ retire retire (
       .halt(halt), // if we retire faulted
       .f_list_freed(f_list_freed),
       .retire_rob_id(retire_rob_id),
-      .retire_rob_valid(retire_rob_valid)
+      .retire_rob_valid(retire_rob_valid),
+      .update_btb(update_btb),
+      .taken(taken)
 );
 
 endmodule

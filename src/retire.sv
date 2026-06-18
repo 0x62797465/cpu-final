@@ -15,7 +15,9 @@ module retire (
     output reg halt, // if we retire faulted
     output reg [63:0] f_list_freed,
     output reg [3:0] retire_rob_id,
-    output reg retire_rob_valid
+    output reg retire_rob_valid,
+    output reg [1:0] [1:0] taken,
+    output reg [1:0] update_btb
 );
 
 rob_ent_t [15:0] rob = '0;
@@ -40,6 +42,7 @@ always @(posedge clk or negedge reset) begin
             if (ex_uops[i].valid) begin
                 rob[ex_uops[i].rob_id].misspredict <= (ex_uops[i].was_jmp && 
                     (ex_uops[i].pred_taken != ex_uops[i].taken));
+                rob[ex_uops[i].rob_id].taken <= ex_uops[i].taken;
                 rob[ex_uops[i].rob_id].finished <= 1'b1;
                 rob[ex_uops[i].rob_id].new_pc <= ex_uops[i].new_pc;
                 rob[ex_uops[i].rob_id].faulted <= rob[ex_uops[i].rob_id].faulted | ex_uops[i].faulted;
@@ -50,6 +53,8 @@ end
 
 always @(posedge clk or negedge reset) begin
     if (!reset||flush) begin
+        update_btb <= '0;
+        taken <= '0;
         head <= '0;
         retire_rob_valid <= '0;
         f_list_freed = '0;
@@ -66,8 +71,16 @@ always @(posedge clk or negedge reset) begin
         tmp_head = head;
         prev_ready = 1;
         retire_rob_valid <= 0;
+        update_btb <= 2'b00;
         for (int i = 0; i < 2; i++) begin // subject to change
             if (prev_ready && rob[tmp_head].finished) begin
+                if (rob[tmp_head].spec) begin
+                    update_btb[i] <= 1'b1;
+                    if (rob[tmp_head].taken) 
+                        taken[i] <= 2'b01;
+                    else 
+                        taken[i] <= 2'b11; // -1
+                end
                 if (rob[tmp_head].faulted) begin
                     halt <= 1'b1;
                 end

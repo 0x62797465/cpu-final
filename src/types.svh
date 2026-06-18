@@ -25,6 +25,7 @@ typedef struct packed {
 	logic       misspredict;
 	logic [31:0]new_pc; // for mispred
 	logic       faulted;
+	logic       taken;
 } rob_ent_t;
 
 typedef struct packed {
