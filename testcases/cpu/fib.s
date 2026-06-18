@@ -1,7 +1,7 @@
 .text
 .globl _start
 _start:
-    addi t0, zero, 20 // fib for 20
+    addi t0, zero, 20 
     addi t1, zero, 0
     addi t2, zero, 1
     addi t3, t0, -1
@@ -14,6 +14,7 @@ fib_loop:
     addi t3, t3, -1
     beq  zero, zero, fib_loop
 done:
-    addi t6, t2, 0
+    addi x15, t2, 0
+    addi x31, x0, 0xef
 halt:
     beq  zero, zero, halt

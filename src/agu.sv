@@ -134,18 +134,27 @@ defparam
     mem.ram_block_type = "M10K";
 `endif
 
+reg prev_written;
+reg [2:0] prev_written_id;
+
 always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
     if (!CPU_RESET_n || flush) begin 
         write_enable <= '0;
         f_list_freed <= '0;
+        prev_written <= '0;
+        prev_written_id <= '0;
     end else begin
         logic [7:0] f_list_tmp;
+        f_list_freed <= '0;
+        if (prev_written) begin
+            f_list_freed[prev_written_id] <= 1'b1;
+            prev_written <= 1'b0;
+        end
         write_enable <= 0;
         queue_mask <= '0;
         queue_addr <= '0;
         queue_data <= '0;
         f_list_tmp = f_list ^ f_list_freed ^ f_list_allocated;
-        f_list_freed <= '0;
         if (retire_rob_valid) begin
             write_enable <= 1;
             for (int i = 0; i < 8; i++) begin
@@ -153,7 +162,8 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
                     queue_mask <= queue[i].mask;
                     queue_addr <= queue[i].addr>>2;
                     queue_data <= queue[i].data;
-                    f_list_freed[i] <= 1'b1;
+                    prev_written <= 1'b1;
+                    prev_written_id <= i;
                     break;
                 end
             end

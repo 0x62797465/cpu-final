@@ -76,7 +76,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
                 uop_out.was_jmp <= 1'b1;
                 uop_out.pred_taken <= 1'b0; // manually invoke mispred logic
                 uop_out.taken <= 1'b1;
-                uop_out.new_pc <= ((src_1) + {{20{uop.immediate[11]}}, uop.immediate[11:0]}) & {31'b1, 1'b0};
+                uop_out.new_pc <= ((src_1) + {{20{uop.immediate[11]}}, uop.immediate[11:0]}) & {{31{1'b1}}, 1'b0};
                 uop_out.dst_val <= uop.pc + 4;
             end
             3'b000: begin // the real ALU part

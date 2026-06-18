@@ -170,6 +170,7 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
             cycle_count <= 0;
             fetch_addr <= 0;
             jump_count <= 0;
+            prev_fetch_addr <= '0;
             misspred_count <= 0;
       end else if (flush) begin
             misspred_count <= misspred_count + 1;
@@ -181,7 +182,7 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
                   n_first_valid <= 1'b0;
                   if (jmp) begin
                         jump_count <= jump_count + 1;
-                        prev_fetch_addr <= new_pc;
+                        prev_fetch_addr <= {new_pc >> 3, 3'b000};
                         predecode_instr <= {mem[({new_pc >> 3, 3'b000}>>2)+1], mem[({new_pc >> 3, 3'b000}>>2)]};
                         if ({new_pc >> 3, 3'b000} != new_pc)
                               n_first_valid <= 1'b1;

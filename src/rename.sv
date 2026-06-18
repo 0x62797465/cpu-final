@@ -31,9 +31,13 @@ reg [5:0] allocated_preg;
 reg [63:0] f_list_dup;
 reg [63:0] f_list;
 reg [31:0] [5:0] rename_table; // what register maps to what physical register
+reg [3:0] total_free;
+reg [3:0] prev_head;
 
 always @(posedge clk or negedge CPU_RESET_n) begin
 	if (!CPU_RESET_n||flush) begin
+		total_free <= 4'hf;
+		prev_head <= '0;
 		f_list_allocated <= '0;
 		rob_entries <= '0;
     	f_list <= {{63{1'b1}},1'b0};
@@ -57,12 +61,14 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 	end else if (stall_backwards) begin
 		logic [7:0] acum;
 		logic [63:0] tmp_flist;
+		prev_head <= head;
 		tmp_flist = (f_list^f_list_freed);
 		acum = '0;
+		total_free = total_free - (prev_head - head);
 		for (int i = 0; i < 64; i++) begin
 			acum = acum + tmp_flist[i];
 		end
-		if (acum >= 3 && (head-tail > 3)) begin
+		if (acum >= 3 && (total_free > 4)) begin
 			stall_backwards <= '0;
 		end
 		f_list <= f_list^f_list_freed;
@@ -73,6 +79,9 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 	end else begin
 		logic [7:0] acum;
 		logic [3:0] tail_inc;
+		logic [1:0] amount_allocated;
+		prev_head <= head;
+		amount_allocated = 0;
 		tail_inc = tail;
 		acum = '0;
 		f_list_allocated <= '0; // for XOR later on flist since commit can free
@@ -80,12 +89,13 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		for (int i = 0; i < 64; i++) begin
 			acum = acum + f_list_dup[i];
 		end
-		if (acum <= 3 || ((head-tail <= 3) && (head != tail))) begin // basically tells everything else 
+		if (acum <= 3 || (total_free <= 4)) begin // basically tells everything else 
 			stall_backwards <= '1;                            // to process remaining instructions
 		end // the or condition prevents a perm-stall that would occur
 		for (int i = 0; i < 2; i++) begin // operate on all 2 uops
 			allocated_preg = 0;
 			if (!uops[i].faulted && (|uops[i])) begin // don't fill up rename table if invalid opcode
+				amount_allocated = amount_allocated + 1;
 				rob_entries[i].faulted <= 1'b0;
 				rob_ent_val[i] <= 1'b1;
 				renamed[i] <= uops[i]; // copy uop
@@ -143,6 +153,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 				rob_ent_val[i] <= 1'b0;
 			end
 		end
+		total_free = total_free - amount_allocated + (head-prev_head);
 		tail <= tail_inc;
 		f_list <= f_list_dup;
 	end
