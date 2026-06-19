@@ -39,7 +39,7 @@ retire_tb: src/retire.sv tb/retire_tb.sv
 cpu_tb: src/cpu.sv tb/cpu_tb.sv
 	vlib work
 	vmap work work
-	vlog +define+sim -sv src/cpu.sv src/retire.sv src/alu.sv src/agu.sv src/issue.sv src/rename.sv src/decode.sv tb/cpu_tb.sv
+	vlog +define+sim -sv src/cpu.sv src/retire.sv src/alu.sv src/agu.sv src/issue.sv src/rename.sv src/decode.sv src/uart.sv tb/cpu_tb.sv
 	SALT_LICENSE_SERVER=~/Tools/LR-156275_License.dat vsim -suppress 12110 -quiet -c work.cpu_tb -do "run -all; quit"
 
 

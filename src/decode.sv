@@ -5,6 +5,7 @@ module decode (
 		input              CPU_RESET_n,
 		input              flush,
 		input              stall,
+		input              loading,
 		input  [31:0]      prev_fetch_addr,
 		input var [1:0] [1:0]taken,
 		input  [1:0]       update_btb,
@@ -49,6 +50,14 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		jmp <= 1'b0;
 		uops <= '0;
 		just_jumped <= '1; // cycle delay during reset
+	end else if (loading) begin
+		btb <= '0;
+		btb_head <= '0;
+		btb_tail <= '0;
+		btb_ent_q <= '0;
+		jmp <= 1'b0;
+		uops <= '0;
+		just_jumped <= '1;
 	end else if (flush) begin
 		for (i = 0; i < 2; i = i + 1) begin
 			if (update_btb[i]) begin

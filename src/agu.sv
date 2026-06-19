@@ -59,9 +59,14 @@ module agu (
     input var [3:0]  retire_rob_id,
     input var        retire_rob_valid,
     input            flush,
+    input            UART_RX,
 
     output var post_ex_uop_t uop_out,
-    output reg       agu_ready
+    output reg       loaded_valid,
+    output reg [3:0] [7:0] loaded_word, 
+    output reg       loading,
+    output reg       agu_ready,
+    output reg       UART_TX
 );
 
 typedef struct packed {
@@ -139,17 +144,77 @@ defparam
 reg prev_written;
 reg [2:0] prev_written_id;
 
+reg [7:0] chr;
+reg chr_ready;
+reg rc_done;
+char_in char_in (
+    .clk(clk),
+    .CPU_RESET_n(CPU_RESET_n),
+    .UART_RX(UART_RX),
+    .rc_done(rc_done),
+    .chr(chr)
+);
+
+reg [31:0] load_ptr;
+reg [3:0] [7:0] header;
+reg header_loaded;
+reg byte_written;
+reg loading_done;
+reg [1:0] load_word_ptr;
 always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
-    if (!CPU_RESET_n) begin 
+    if (!CPU_RESET_n) begin
+        load_ptr <= '0;
+        loading_done <= 0;
+        header_loaded <= 0;
+        header <= '0;
+        load_word_ptr <= '0;
         write_enable <= '0;
         f_list_freed <= '0;
         prev_written <= '0;
         prev_written_id <= '0;
+        loading <= 1;
+        loaded_valid <= 0;
+        loaded_word <= 0;
+        byte_written <= 0;
     end else if (flush) begin 
         write_enable <= '0;
         f_list_freed <= '0;
         prev_written <= '0;
         prev_written_id <= '0;
+    end else if (loading) begin
+        write_enable <= '0;
+        if (loaded_valid) begin
+            loaded_valid <= '0;
+            loaded_word <= '0;
+        end
+        if (loading_done)
+            loading <= 1'b0;
+        else if (!rc_done)
+            byte_written <= 0;
+        else if (rc_done && !byte_written) begin
+            if (!header_loaded) begin
+                byte_written <= 1;
+                header[load_word_ptr] <= chr;
+                load_word_ptr <= load_word_ptr + 1;
+                if (load_word_ptr == 2'b11)
+                    header_loaded <= 1'b1;
+            end else begin
+                byte_written <= 1;
+                loaded_word[load_word_ptr] <= chr;
+                load_word_ptr <= load_word_ptr + 1;
+                header <= header - 1;
+                if (load_word_ptr == 2'b11 || !header) begin
+                    loaded_valid <= 1'b1;
+                    write_enable <= '1;
+                    queue_data <= loaded_word;
+                    queue_mask <= 4'b1111;
+                    load_ptr <= load_ptr + 1;
+                    queue_addr <= load_ptr;
+                end
+                if (!header)
+                    loading_done <= 1'b1;
+            end
+        end    
     end else begin
         logic [7:0] f_list_tmp;
         f_list_tmp = f_list ^ f_list_freed ^ f_list_allocated;

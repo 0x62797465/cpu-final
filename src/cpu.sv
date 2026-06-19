@@ -156,22 +156,34 @@ reg [31:0] [5:0] a_reg_state;
 reg STALL_FROM_RENAME = 0;
 reg STALL_FROM_ISSUE = 0;
 reg flush = 0;
+reg loading = 0;
+reg [31:0] loaded_word = 0;
+reg loaded_valid = 0;
 
 reg n_first_valid = 0;
 reg jmp;
 reg [31:0] cycle_count = 0;
 reg [15:0] misspred_count = 0;
 reg [15:0] jump_count = 0;
+reg [31:0] load_ptr;
 reg [31:0] new_pc = 0;
 reg [31:0] new_flush_pc = 0;
 reg [31:0] prev_fetch_addr = 0;
 always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
+            load_ptr <= 0;
             cycle_count <= 0;
             fetch_addr <= 0;
             jump_count <= 0;
             prev_fetch_addr <= '0;
             misspred_count <= 0;
+      end else if (loading) begin
+            if (loaded_valid) begin
+                  if (load_ptr <= 4095) begin
+                        load_ptr <= load_ptr + 1;
+                        mem[load_ptr] <= loaded_word;
+                  end
+            end
       end else if (flush) begin
             misspred_count <= misspred_count + 1;
             cycle_count <= cycle_count + 1;
@@ -202,6 +214,7 @@ uop_t [1:0] uops_prerename;
 decode decode (
 	.clk(`CLK),
       .flush(flush),
+      .loading(loading),
 	.CPU_RESET_n(CPU_RESET_n),
       .update_btb(update_btb),
       .taken(taken),
@@ -239,7 +252,7 @@ rename rename (
       .f_list_freed(f_list_freed),
       .stall(STALL_FROM_ISSUE),
       .a_reg_state(a_reg_state),
-      .flush(flush),
+      .flush((flush|loading)),
 
       // outputs
       .f_list_allocated(f_list_allocated), // list of pregs allocated by rename
@@ -267,7 +280,7 @@ issue issue (
       .uops_renamed(uops_renamed),
       .agu_ready(agu_ready), // needed because variable-cycle since we check LSQ and BRAM
       .p_reg_ready(p_reg_ready), // signals what's ready
-      .flush(flush),
+      .flush((flush|loading)),
 
       // outputs
       .alu_1_uop(alu_1_uop),
@@ -288,7 +301,7 @@ alu alu_1 (
       .valid(alu_1_valid),
       .src_1(p_regs[alu_1_uop.src1_reg]),
       .src_2(p_regs[alu_1_uop.src2_reg]),
-      .flush(flush),
+      .flush((flush|loading)),
 
       // outputs
       .uop_out(ex_uops[0])
@@ -302,7 +315,7 @@ alu alu_2 (
       .valid(alu_2_valid),
       .src_1(p_regs[alu_2_uop.src1_reg]),
       .src_2(p_regs[alu_2_uop.src2_reg]),
-      .flush(flush),
+      .flush((flush|loading)),
 
       // outputs
       .uop_out(ex_uops[1])
@@ -320,10 +333,15 @@ agu agu (
       .src_2(p_regs[agu_uop.src2_reg]),
       .retire_rob_id(retire_rob_id),
       .retire_rob_valid(retire_rob_valid),
-      .flush(flush),
+      .flush((flush|loading)),
+      .UART_RX(UART_RX),
 
       .uop_out(ex_uops[2]),
-      .agu_ready(agu_ready)
+      .loaded_valid(loaded_valid),
+      .loaded_word(loaded_word),
+      .loading(loading),
+      .agu_ready(agu_ready),
+      .UART_TX(UART_TX)
 );
 
 // writeback; very simple so no module
@@ -331,7 +349,7 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
             p_regs <= '0;
             p_reg_ready <= {{63{1'b0}},1'b1};
-      end else if (!flush) begin 
+      end else if (!(flush|loading)) begin 
             logic [63:0] p_reg_ready_tmp;
             p_reg_ready_tmp = p_reg_ready & ~f_list_allocated; // just allocated == not yet ready
             for (int i = 0; i < 3; i++) begin
