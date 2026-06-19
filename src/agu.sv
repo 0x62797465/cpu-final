@@ -87,7 +87,9 @@ reg [3:0] mask_needed;
 reg [31:0] data;
 
 always @(posedge clk or negedge CPU_RESET_n) begin
-    if (!CPU_RESET_n || flush) 
+    if (!CPU_RESET_n) 
+        f_list <= '1;
+    else if (flush)
         f_list <= '1;
     else
         f_list <= f_list ^ f_list_freed ^ f_list_allocated;
@@ -138,7 +140,12 @@ reg prev_written;
 reg [2:0] prev_written_id;
 
 always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
-    if (!CPU_RESET_n || flush) begin 
+    if (!CPU_RESET_n) begin 
+        write_enable <= '0;
+        f_list_freed <= '0;
+        prev_written <= '0;
+        prev_written_id <= '0;
+    end else if (flush) begin 
         write_enable <= '0;
         f_list_freed <= '0;
         prev_written <= '0;
@@ -182,12 +189,18 @@ end
 assign n_stall = ( f_count > 2); // prevents LSQ overflow
 
 always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multiple drivers
-    if (!CPU_RESET_n || flush) begin
+    if (!CPU_RESET_n) begin
         queue = '0;
         f_list_allocated <= 1'b0;
         agu_ready <= 1;
         lsq_miss <= 0;
         uop_out <= '0;
+    end else if (flush) begin
+        queue = '0;
+        f_list_allocated <= 1'b0;
+        agu_ready <= 1;
+        lsq_miss <= 0;
+        uop_out <= '0; 
     end else begin // store
         logic [7:0] f_list_tmp;
         f_list_tmp = f_list ^ f_list_freed ^ f_list_allocated;

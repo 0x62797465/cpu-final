@@ -25,7 +25,10 @@ reg [3:0] tail = '0;
 
 // insertion for new & completed instructions
 always @(posedge clk or negedge reset) begin
-    if (!reset||flush) begin
+    if (!reset) begin
+        rob <= '0;
+        tail <= '0;
+    end else if (flush) begin
         rob <= '0;
         tail <= '0;
     end else begin
@@ -52,7 +55,7 @@ always @(posedge clk or negedge reset) begin
 end
 
 always @(posedge clk or negedge reset) begin
-    if (!reset||flush) begin
+    if (!reset) begin
         update_btb <= '0;
         taken <= '0;
         head <= '0;
@@ -61,9 +64,16 @@ always @(posedge clk or negedge reset) begin
         flush <= '0;
         new_pc <= '0;
         halt <= '0;
-        if (!reset) begin
-            a_reg_state = '0;
-        end
+        a_reg_state = '0;
+    end else if (flush) begin
+        update_btb <= '0;
+        taken <= '0;
+        head <= '0;
+        retire_rob_valid <= '0;
+        f_list_freed = '0;
+        flush <= '0;
+        new_pc <= '0;
+        halt <= '0;
     end else if (!halt) begin // freezes architectural state on halt
         logic prev_ready;
         logic [3:0] tmp_head;

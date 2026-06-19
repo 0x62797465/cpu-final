@@ -41,17 +41,21 @@ reg [31:0] prev_prev_fetch_addr = '0;
 reg just_jumped = 0;
 
 always @(posedge clk or negedge CPU_RESET_n) begin
-	if (!CPU_RESET_n || flush) begin
-		if (!flush)
-			btb <= '0;
-		else begin
-			for (i = 0; i < 2; i = i + 1) begin
-				if (update_btb[i]) begin
-					if ((taken[i] == 2'b11 && btb[btb_ent_q[btb_head]] != 2'b00) 
-						|| (taken[i] == 2'b01 && btb[btb_ent_q[btb_head]] != 2'b11))
-							btb[btb_ent_q[btb_head]] <= btb[btb_ent_q[btb_head]] + taken[i]; // "taken" will be 1 or negative 1
-						btb_head = btb_head + 1;
-				end
+	if (!CPU_RESET_n) begin
+		btb <= '0;
+		btb_head <= '0;
+		btb_tail <= '0;
+		btb_ent_q <= '0;
+		jmp <= 1'b0;
+		uops <= '0;
+		just_jumped <= '1; // cycle delay during reset
+	end else if (flush) begin
+		for (i = 0; i < 2; i = i + 1) begin
+			if (update_btb[i]) begin
+				if ((taken[i] == 2'b11 && btb[btb_ent_q[btb_head]] != 2'b00) 
+					|| (taken[i] == 2'b01 && btb[btb_ent_q[btb_head]] != 2'b11))
+						btb[btb_ent_q[btb_head]] <= btb[btb_ent_q[btb_head]] + taken[i]; // "taken" will be 1 or negative 1
+					btb_head = btb_head + 1;
 			end
 		end
 		btb_head <= '0;
@@ -76,9 +80,11 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 			jmp <= 1'b0;
 		end else if (!stall) begin
 			logic jumped;
+			logic [5:0] btb_addr;
 			jumped = 0;
 			uops <= '0;
 			for (i = 0; i < 2; i = i + 1) begin // despite the for loop, this is done in parellel
+				btb_addr = {prev_fetch_addr + (i*4)};
 				uops[i].pc <= prev_fetch_addr + (i*4); // 4 bytes
 				uops[i].faulted <= 0;
 				if ((instructions[i][1:0]) == 2'b11 && !jumped && (i != 0 || !n_valid)) begin // non-compressed
@@ -153,7 +159,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 						B_type : begin // assigns src1, src2, and immediate
 								btb_ent_q[btb_tail] <= prev_fetch_addr + (i*4);
 								btb_tail = btb_tail + 1;
-								if (btb[{prev_fetch_addr + (i*4)}[5:0]][1]) begin
+								if (btb[btb_addr[5:0]][1]) begin
 									uops[i].pred_taken <= 1'b1;
 									just_jumped <= 1'b1; // so next cycle inserts bubbles
 									jumped = 1; // so next instruction becomes bubble

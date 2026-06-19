@@ -24,7 +24,9 @@ module alu (
 );
 logic was_taken = '0;
 always @(posedge clk or negedge CPU_RESET_n) begin
-	if (!CPU_RESET_n || flush) begin
+	if (!CPU_RESET_n) begin
+        uop_out <= '0;
+    end else if (flush) begin
         uop_out <= '0;
     end else if (valid) begin
         was_taken = 0;

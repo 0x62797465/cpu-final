@@ -26,7 +26,7 @@ uop_t [7:0] alu_issue_queue = '0;
 reg [7:0] alu_uops_fl = '1;
 
 always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
-    if (!CPU_RESET_n || flush) begin
+    if (!CPU_RESET_n) begin
         alu_uops_fl <= '1;
         mem_head <= '0;
         mem_tail <= '0;
@@ -39,8 +39,20 @@ always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
         agu_uop <= '0;
         agu_valid <= '0;
         stall_backwards <= '0;
-    end
-    else begin
+    end else if (flush) begin
+        alu_uops_fl <= '1;
+        mem_head <= '0;
+        mem_tail <= '0;
+        mem_issue_queue <= '0;
+        alu_issue_queue <= '0;
+        alu_1_uop <= '0;
+        alu_2_uop <= '0;
+        alu_1_valid <= '0;
+        alu_2_valid <= '0;
+        agu_uop <= '0;
+        agu_valid <= '0;
+        stall_backwards <= '0;
+    end else begin
         logic [3:0] acum_alu;
         acum_alu = '0;
         for (int i = 0; i < 8; i++) begin
