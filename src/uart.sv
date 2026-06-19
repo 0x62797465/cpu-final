@@ -37,7 +37,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin // putchar equivalent
 					tm_ready <= 1;
 				end
 			endcase
-		end else if (chr_ready) begin
+		end else if (tm_ready && chr_ready) begin
 			baud <= 0;
 			tm_ready <= 0; // mark as in use
 		end else if (!tm_ready) begin

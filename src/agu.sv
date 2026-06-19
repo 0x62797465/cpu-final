@@ -65,8 +65,7 @@ module agu (
     output reg       loaded_valid,
     output reg [3:0] [7:0] loaded_word, 
     output reg       loading,
-    output reg       agu_ready,
-    output reg       UART_TX
+    output reg       agu_ready
 );
 
 typedef struct packed {
@@ -175,8 +174,8 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
         loading <= 1;
         loaded_valid <= 0;
         loaded_word <= 0;
-        byte_written <= 0;
-    end else if (flush) begin 
+        byte_written <= 1;
+    end else if (flush) begin
         write_enable <= '0;
         f_list_freed <= '0;
         prev_written <= '0;
@@ -211,8 +210,9 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
                     load_ptr <= load_ptr + 1;
                     queue_addr <= load_ptr;
                 end
-                if (!header)
+                if (header == 1) begin
                     loading_done <= 1'b1;
+                end
             end
         end    
     end else begin

@@ -156,7 +156,7 @@ reg [31:0] [5:0] a_reg_state;
 reg STALL_FROM_RENAME = 0;
 reg STALL_FROM_ISSUE = 0;
 reg flush = 0;
-reg loading = 0;
+reg loading;
 reg [31:0] loaded_word = 0;
 reg loaded_valid = 0;
 
@@ -333,15 +333,14 @@ agu agu (
       .src_2(p_regs[agu_uop.src2_reg]),
       .retire_rob_id(retire_rob_id),
       .retire_rob_valid(retire_rob_valid),
-      .flush((flush|loading)),
+      .flush((flush)),
       .UART_RX(UART_RX),
 
       .uop_out(ex_uops[2]),
       .loaded_valid(loaded_valid),
       .loaded_word(loaded_word),
       .loading(loading),
-      .agu_ready(agu_ready),
-      .UART_TX(UART_TX)
+      .agu_ready(agu_ready)
 );
 
 // writeback; very simple so no module
