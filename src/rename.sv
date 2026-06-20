@@ -42,18 +42,10 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		rob_entries <= '0;
     	f_list <= {{63{1'b1}},1'b0};
 		stall_backwards <= '0;
-		for (int reset_rt = 0; reset_rt < 32; reset_rt++) begin
-			rename_table[reset_rt] = '0; // read from 0 if unitialized
-		end
+		rename_table = '0;
 		renamed <= '0;
 		tail <= '0;
 		rob_ent_val <= '0;
-		if (flush) begin
-			for (int reset_rt = 0; reset_rt < 32; reset_rt++) begin
-				rename_table[reset_rt] = a_reg_state[reset_rt];
-				f_list[a_reg_state[reset_rt]] <= 1'b0;
-			end
-		end
 	end else if (flush) begin
 		total_free <= 4'hf;
 		prev_head <= '0;
@@ -61,9 +53,6 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		rob_entries <= '0;
     	f_list <= {{63{1'b1}},1'b0};
 		stall_backwards <= '0;
-		for (int reset_rt = 0; reset_rt < 32; reset_rt++) begin
-			rename_table[reset_rt] = '0; // read from 0 if unitialized
-		end
 		renamed <= '0;
 		tail <= '0;
 		rob_ent_val <= '0;

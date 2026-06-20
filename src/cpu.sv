@@ -102,7 +102,7 @@ module cpu(
 
       ///////// LEDG ///////// 2.5 V ///////
       output      [7:0]  LEDG,
-*/
+
       ///////// LEDR ///////// 2.5 V ///////
       output      [9:0]  LEDR,
 /*
@@ -232,6 +232,7 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
             misspred_count <= 0;
             we1 <= 1'b0;
             we2 <= 1'b0;
+            load_ptr_tmp <= '0;
       end else if (loading) begin
             we1 <= 1'b0;
             we2 <= 1'b0;
@@ -379,6 +380,7 @@ alu alu_2 (
 
 reg [3:0] retire_rob_id;
 reg retire_rob_valid;
+reg [31:0] header;
 
 agu agu (
       .clk(`CLK),
@@ -396,7 +398,8 @@ agu agu (
       .loaded_valid(loaded_valid),
       .loaded_word(loaded_word),
       .loading(loading),
-      .agu_ready(agu_ready)
+      .agu_ready(agu_ready),
+      .header(header)
 );
 
 // writeback; very simple so no module
@@ -418,8 +421,8 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
             end
             p_reg_ready <= p_reg_ready_tmp;
       end
-end 
-assign LEDR = p_regs;
+end
+
 retire retire (
       .clk(`CLK),
       .reset(CPU_RESET_n),

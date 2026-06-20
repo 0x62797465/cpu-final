@@ -64,6 +64,7 @@ module agu (
     output var post_ex_uop_t uop_out,
     output reg       loaded_valid,
     output reg [3:0] [7:0] loaded_word, 
+    output reg [3:0] [7:0] header,
     output reg       loading,
     output reg       agu_ready
 );
@@ -126,7 +127,7 @@ defparam
     mem.widthad_b = 13,
     mem.width_byteena_a = 4,
     mem.address_reg_b = "CLOCK0",
-    mem.outdata_reg_b = "CLOCK0",
+    mem.outdata_reg_b = "UNREGISTERED",
     mem.ram_block_type = "M10K";
 `endif
 
@@ -145,7 +146,6 @@ char_in char_in (
 );
 
 reg [31:0] load_ptr;
-reg [3:0] [7:0] header;
 reg header_loaded;
 reg byte_written;
 reg loading_done;
