@@ -69,17 +69,15 @@ module agu (
 );
 
 typedef struct packed {
-    logic [3:0]  age; // rob_id and head trick unreliable; this trick should not overflow because the add happens every insertion, which means the oldest instruction is at most 7(?)
     logic [3:0]  rob_id;
     logic [31:0] data;
     logic [31:0] addr;
     logic [3:0]  mask; // 3 is word (32 bit), 2 is half (16 bit), 1 is byte (8 bit), 0 is invalid 
 } SQ;
 
-reg [7:0] f_list_allocated = '0;
-reg [7:0] f_list_freed = '0;
-reg [7:0] f_list = '1;
 SQ [7:0] queue = '0;
+reg [2:0] qhead;
+reg [2:0] qtail;
 
 wire [31:0] addr = {src_1+{{20{uop.immediate[11]}}, uop.immediate[11:0]}}; // immediate is sign extended
 wire [1:0] offset = addr - {addr[31:2], 2'b00}; // offset from 4 byte (cache aligned) block
@@ -90,14 +88,6 @@ reg [3:0] mask;
 reg [3:0] mask_needed;
 reg [31:0] data;
 
-always @(posedge clk or negedge CPU_RESET_n) begin
-    if (!CPU_RESET_n) 
-        f_list <= '1;
-    else if (flush)
-        f_list <= '1;
-    else
-        f_list <= f_list ^ f_list_freed ^ f_list_allocated;
-end
 reg [12:0] queue_addr;
 reg [3:0] queue_mask;
 reg [31:0] queue_data;
@@ -168,7 +158,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
         header <= '0;
         load_word_ptr <= '0;
         write_enable <= '0;
-        f_list_freed <= '0;
+        qhead <= '0;
         prev_written <= '0;
         prev_written_id <= '0;
         loading <= 1;
@@ -177,7 +167,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
         byte_written <= 1;
     end else if (flush) begin
         write_enable <= '0;
-        f_list_freed <= '0;
+        qhead <= '0;
         prev_written <= '0;
         prev_written_id <= '0;
     end else if (loading) begin
@@ -216,11 +206,8 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
             end
         end    
     end else begin
-        logic [7:0] f_list_tmp;
-        f_list_tmp = f_list ^ f_list_freed ^ f_list_allocated;
-        f_list_freed <= '0;
         if (prev_written) begin
-            f_list_freed[prev_written_id] <= 1'b1;
+            qhead <= qhead + 1;
             prev_written <= 1'b0;
         end
         write_enable <= 0;
@@ -229,71 +216,51 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
         queue_data <= '0;
         if (retire_rob_valid) begin
             write_enable <= 1;
-            for (int i = 0; i < 8; i++) begin
-                if ((queue[i].rob_id == retire_rob_id) && !f_list_tmp[i]) begin
-                    queue_mask <= queue[i].mask;
-                    queue_addr <= queue[i].addr>>2;
-                    queue_data <= queue[i].data;
-                    prev_written <= 1'b1;
-                    prev_written_id <= i;
-                    break;
-                end
-            end
+            queue_mask <= queue[qhead].mask;
+            queue_addr <= queue[qhead].addr>>2;
+            queue_data <= queue[qhead].data;
+            prev_written <= 1'b1;     
         end
     end
 end
 
 logic [6:0] f_count;
 logic n_stall;
-always_comb begin
-    f_count = '0;
-    for (int i = 0; i < 8; i++) begin
-        f_count = f_count + f_list[i];
-    end
-end
-assign n_stall = ( f_count > 2); // prevents LSQ overflow
+
+assign n_stall = ( (qhead-qtail) > 1 || (qhead==qtail)); // prevents LSQ overflow
 
 always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multiple drivers
     if (!CPU_RESET_n) begin
         queue = '0;
-        f_list_allocated <= 1'b0;
         agu_ready <= 1;
         lsq_miss <= 0;
+        qtail <= '0;
         uop_out <= '0;
     end else if (flush) begin
         queue = '0;
-        f_list_allocated <= 1'b0;
+        qtail <= '0;
         agu_ready <= 1;
         lsq_miss <= 0;
         uop_out <= '0; 
     end else begin // store
-        logic [7:0] f_list_tmp;
-        f_list_tmp = f_list ^ f_list_freed ^ f_list_allocated;
-        f_list_allocated <= 1'b0;
         if ((uop.op_type == 3'b011) && valid && agu_ready && !lsq_miss) begin
             logic [3:0] mask_ins;
             logic [3:0] mask_needed_ins;
             logic [31:0] data_ins;
             logic [31:0] all_dat;
-            logic [5:0] best_age;
             logic [31:0] src_2_shifted;
             data_ins = '0;
             mask_needed_ins = '0;
             mask_ins = '0;
             uop_out.valid <= 1'b0;
-            best_age = 5'b11111;
             agu_ready <= n_stall;
             lsq_miss <= 1'b0;
             uop_out.faulted <= 1'b0;
             for (int i = 0; i < 8; i++) begin
-                if (!(f_list_tmp[i]) && (queue[i].addr>>2 == addr>>2) && (queue[i].age <= best_age)) begin
-                    mask_ins = queue[i].mask;
-                    best_age = queue[i].age;
-                    data_ins = queue[i].data;
+                if ((queue[qhead+i].addr>>2 == addr>>2) && (qhead+i != qtail)) begin
+                    mask_ins = queue[qhead+i].mask;
+                    data_ins = queue[qhead+i].data;
                 end
-            end
-            for (int i = 0; i < 8; i++) begin
-                queue[i].age <= f_list_tmp[i] ? 4'b0 : queue[i].age + 1; // should never overflow in theory 
             end
             case (uop.op)
                 4'b0000: // store byte
@@ -313,17 +280,11 @@ always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multipl
                         {mask_needed_ins[2] ? src_2_shifted[23:16] : data_ins[23:16]},
                         {mask_needed_ins[1] ? src_2_shifted[15:8]  : data_ins[15:8] },
                         {mask_needed_ins[0] ? src_2_shifted[7:0]   : data_ins[7:0]  }};
-            for (int i = 0; i < 8; i++) begin
-                if (f_list_tmp[i]) begin
-                    f_list_allocated[i] <= 1'b1;
-                    queue[i].age <= 1'b0;
-                    queue[i].rob_id <= uop.rob_id;
-                    queue[i].data <= all_dat;
-                    queue[i].addr <= {addr>>2, 2'b00};
-                    queue[i].mask <= mask_needed_ins|mask_ins;
-                    break;
-                end
-            end
+            queue[qtail].rob_id <= uop.rob_id;
+            queue[qtail].data <= all_dat;
+            queue[qtail].addr <= {addr>>2, 2'b00};
+            queue[qtail].mask <= mask_needed_ins|mask_ins;
+            qtail <= qtail + 1;
             uop_out.valid <= 1'b1;
             uop_out.was_jmp <= 1'b0;
             uop_out.was_mem <= 1'b1;
@@ -366,9 +327,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multipl
             uop_out.rob_id <= uop.rob_id;
             lsq_miss <= 1'b0;
         end else if ((uop.op_type == 3'b001) && valid && agu_ready && !lsq_miss) begin
-            logic [5:0] best_age;
             uop_out.valid <= 1'b0;
-            best_age = 5'b11111;
             agu_ready <= 1'b0;
             lsq_miss <= 1'b0;
             uop_out.faulted <= 1'b0;
@@ -383,12 +342,12 @@ always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multipl
             // and can write to any bytes because writes stack on top of each other in 
             // the LSQ. You may be asking: what about missprediction? It should work, probably. 
             for (int i = 0; i < 8; i++) begin
-                if (!(f_list_tmp[i]) && (queue[i].addr>>2 == addr>>2) && (queue[i].age <= best_age)) begin
-                    mask = queue[i].mask;
-                    best_age = queue[i].age;
-                    data = queue[i].data>>(offset*8);
+                if ((queue[qhead+i].addr>>2 == addr>>2) && (qhead+i != qtail)) begin
+                    mask = queue[qhead+i].mask;
+                    data = queue[qhead+i].data>>(offset*8);
                 end
             end
+
             case (uop.op)
                 4'b0000, 4'b0100: // load byte // load byte unsigned (zero extends)
                     mask_needed = 4'b0001<<offset; // mask is always 32 bit aligned, this is just adapting to the required offset

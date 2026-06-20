@@ -102,10 +102,10 @@ module cpu(
 
       ///////// LEDG ///////// 2.5 V ///////
       output      [7:0]  LEDG,
-
+*/
       ///////// LEDR ///////// 2.5 V ///////
       output      [9:0]  LEDR,
-
+/*
 `ifdef ENABLE_REFCLK
       ///////// REFCLK ///////// 1.5-V PCML ///////
       input              REFCLK_p0,
