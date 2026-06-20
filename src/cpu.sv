@@ -103,9 +103,9 @@ module cpu(
       ///////// LEDG ///////// 2.5 V ///////
       output      [7:0]  LEDG,
 
-      ///////// LEDR ///////// 2.5 V ///////
+      *////////// LEDR ///////// 2.5 V ///////
       output      [9:0]  LEDR,
-
+/*
 `ifdef ENABLE_REFCLK
       ///////// REFCLK ///////// 1.5-V PCML ///////
       input              REFCLK_p0,
@@ -144,9 +144,6 @@ module cpu(
 
 `define CLK CLOCK_50_B5B
 
-// note: this will get split across two blocks due to the wide read; m10k only support 32 bit for dual port/single port
-(* ramstyle = "M10K" *) reg [31:0] mem [4095:0]; // memory, 32 * 4096 bits, or 16kb
-
 reg [31:0] fetch_addr = 32'b0; // pointer to mem for instruction fetch
 reg halt;
 
@@ -160,6 +157,7 @@ reg loading;
 reg [31:0] loaded_word = 0;
 reg loaded_valid = 0;
 
+reg next_n_first_valid = 0;
 reg n_first_valid = 0;
 reg jmp;
 reg [31:0] cycle_count = 0;
@@ -169,45 +167,103 @@ reg [31:0] load_ptr;
 reg [31:0] new_pc = 0;
 reg [31:0] new_flush_pc = 0;
 reg [31:0] prev_fetch_addr = 0;
+
+reg we1;
+reg we2;
+reg [31:0] i_buf_one;
+reg [31:0] i_buf_two;
+
+reg [31:0] load_ptr_tmp;
+reg [31:0] fetch_addr_aligned;
+
+// note: this will get split across two blocks due to the wide read; m10k only support 32 bit for dual port/single port
+(* ramstyle = "M10K" *) reg [31:0] mem1 [2047:0]; // memory, 32 * 4096 bits, or 16kb
+(* ramstyle = "M10K" *) reg [31:0] mem2 [2047:0];
+
+reg [31:0] tmp_load_word;
+assign predecode_instr = {i_buf_two, i_buf_one};
+always @(posedge `CLK) begin
+      i_buf_one <= mem1[fetch_addr_aligned];
+      if (we1)
+            mem1[load_ptr_tmp] <= tmp_load_word;
+end
+
+always @(posedge `CLK) begin
+      i_buf_two <= mem2[fetch_addr_aligned];
+      if (we2)
+            mem2[load_ptr_tmp] <= tmp_load_word;
+end
+
+// missunderstood BRAM; this is combinational now
+
+always @(*) begin
+      fetch_addr = prev_fetch_addr;
+      next_n_first_valid = 0;
+      fetch_addr_aligned = 0;
+      if (loading) begin
+
+      end else if (flush) begin
+            next_n_first_valid = 1'b0;
+            fetch_addr = {new_flush_pc >> 3, 3'b000}; 
+            if ({new_flush_pc >> 3, 3'b000} != new_flush_pc)
+                  next_n_first_valid = 1'b1;
+      end else begin
+            if (!(STALL_FROM_RENAME|STALL_FROM_ISSUE)) begin
+                  next_n_first_valid = 1'b0;
+                  if (jmp) begin
+                        fetch_addr = {new_pc >> 3, 3'b000}; 
+                        if ({new_pc >> 3, 3'b000} != new_pc)
+                              next_n_first_valid = 1'b1;
+                  end else begin
+                        fetch_addr = prev_fetch_addr + 8;
+                  end
+            end 
+      end
+      fetch_addr_aligned = fetch_addr >> 3;
+end      
+
 always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
             load_ptr <= 0;
             cycle_count <= 0;
-            fetch_addr <= 0;
+            n_first_valid <= 0;
             jump_count <= 0;
-            prev_fetch_addr <= '0;
+            prev_fetch_addr <= -8;
             misspred_count <= 0;
+            we1 <= 1'b0;
+            we2 <= 1'b0;
       end else if (loading) begin
+            we1 <= 1'b0;
+            we2 <= 1'b0;
             if (loaded_valid) begin
                   if (load_ptr <= 4095) begin
+                        tmp_load_word <= loaded_word;
                         load_ptr <= load_ptr + 1;
-                        mem[load_ptr] <= loaded_word;
+                        load_ptr_tmp <= {load_ptr} >> 1;
+                        if (load_ptr[0]) // even
+                              we2 <= 1'b1;
+                        else 
+                              we1 <= 1'b1;
                   end
             end
       end else if (flush) begin
+            n_first_valid <= next_n_first_valid;
+            prev_fetch_addr <= {new_flush_pc >> 3, 3'b000};
             misspred_count <= misspred_count + 1;
             cycle_count <= cycle_count + 1;
-            fetch_addr <= new_flush_pc;
       end else begin
             cycle_count <= cycle_count + 1;
             if (!(STALL_FROM_RENAME|STALL_FROM_ISSUE)) begin
-                  n_first_valid <= 1'b0;
+                  n_first_valid <= next_n_first_valid;
                   if (jmp) begin
                         jump_count <= jump_count + 1;
                         prev_fetch_addr <= {new_pc >> 3, 3'b000};
-                        predecode_instr <= {mem[({new_pc >> 3, 3'b000}>>2)+1], mem[({new_pc >> 3, 3'b000}>>2)]};
-                        if ({new_pc >> 3, 3'b000} != new_pc)
-                              n_first_valid <= 1'b1;
-                        fetch_addr <= {new_pc >> 3, 3'b000} + 8;
                   end else begin
                         prev_fetch_addr <= fetch_addr;
-                        predecode_instr <= {mem[(fetch_addr>>2)+1], mem[(fetch_addr>>2)]};
-                        fetch_addr <= fetch_addr + 8;
                   end
             end 
       end
-end      
-
+end
 reg [1:0] update_btb;
 reg [1:0] [1:0] taken;
 uop_t [1:0] uops_prerename;
@@ -363,7 +419,7 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
             p_reg_ready <= p_reg_ready_tmp;
       end
 end 
-
+assign LEDR = p_regs;
 retire retire (
       .clk(`CLK),
       .reset(CPU_RESET_n),

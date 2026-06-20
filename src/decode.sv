@@ -72,7 +72,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 		btb_ent_q <= '0;
 		jmp <= 1'b0;
 		uops <= '0;
-		just_jumped <= '1; // cycle delay during reset
+		just_jumped <= '0; // cycle delay during reset
 	end else begin
 		for (i = 0; i < 2; i = i + 1) begin
 			if (update_btb[i]) begin
