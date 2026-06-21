@@ -195,7 +195,6 @@ always @(posedge `CLK) begin
 end
 
 // missunderstood BRAM; this is combinational now
-
 always @(*) begin
       fetch_addr = prev_fetch_addr;
       next_n_first_valid = 0;
