@@ -399,7 +399,8 @@ agu agu (
       .loaded_word(loaded_word),
       .loading(loading),
       .agu_ready(agu_ready),
-      .header(header)
+      .header(header),
+      .UART_TX(UART_TX)
 );
 
 // writeback; very simple so no module

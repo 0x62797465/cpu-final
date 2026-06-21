@@ -41,4 +41,5 @@ typedef struct packed {
 	logic        faulted;
 	logic [3:0]  rob_id; // lets ROB know what entry it is
     logic        valid; // if it was even set this cycle
+	logic        was_uart;
 } post_ex_uop_t;

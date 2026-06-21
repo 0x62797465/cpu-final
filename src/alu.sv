@@ -29,6 +29,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
     end else if (flush) begin
         uop_out <= '0;
     end else if (valid) begin
+        uop_out.was_uart <= 1'b0;
         was_taken = 0;
         uop_out <= '0;
         uop_out.was_mem <= 1'b0;

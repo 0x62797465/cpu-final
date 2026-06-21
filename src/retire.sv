@@ -43,6 +43,7 @@ always @(posedge clk or negedge reset) begin
         tail <= tmp_tail;
         for (int i = 0; i < 3; i++) begin
             if (ex_uops[i].valid) begin
+                rob[ex_uops[i].rob_id].store <= (rob[ex_uops[i].rob_id].store | ex_uops[i].was_uart);
                 rob[ex_uops[i].rob_id].misspredict <= (ex_uops[i].was_jmp && 
                     (ex_uops[i].pred_taken != ex_uops[i].taken));
                 rob[ex_uops[i].rob_id].taken <= ex_uops[i].taken;

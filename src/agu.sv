@@ -1,54 +1,5 @@
 `include "types.svh"
 
-// This module reads from mem/SQ into registers, additonally
-// it writes into memory with an ROB id that will be specified 
-// by the retire unit. Some notes: the max width of a read 
-// is 32 bits, therefore the word width is 32 bits. But since
-// there are partial writes, we have to do some tricks in 
-// order for 16 bit/8 bit writes to work. 
-
-// This whole unit is messed up. The standard cache line is
-// 64 bytes, ours is 4 bytes due to BRAM restrictions, but 
-// true dual port can only do 4 bytes max read/write per 
-// cycle. But since each block is about 10kb of data the 
-// hope is that synthesizer will split our 32kb block
-// in such a way that we are allowed a bandwidth of 
-// 3*4 bytes instead of just 4 bytes, which would allow
-// for simutaniolus reads/writes of 4 bytes. 
-
-// Writing this after the fact, the read is as follows:
-// We simutaniosly issue a read to BRAM and check if 
-// the data we need for the read is in the LSQ, if
-// there is data in the LSQ that matters to us, we 
-// add a mask, but if it doesn't cover the entire thing
-// we go to the "LSQ missed" logic. During the next <- this should be extendable to other memory layers
-// cycle, in which the read should have completed
-// we apply the mask onto the read data, interpret
-// the instruction to do propper sign extensions and 
-// truncating, then mark the uop as ready and pass it
-// down to wb.
-// For write:
-// We first look for any data in the LSQ that writes
-// to the same aligned address, because the newest 
-// write has to reflect what the written state should
-// be so that when read reads from the LSQ it's 
-// completely accurate and doesn't require more than
-// O(n) time to find the write needed to apply. 
-// Otherwise we would be sorting by age then applying
-// writes one by one (or similar.) After obtaining 
-// data for a completely valid write, we then allocate
-// a free list entry and write to the queue. We also
-// "age" all entries by one.
-// For commit:
-// Simply look for the rob id, when found we commit 
-// the mask respecting write to BRAM and free the 
-// f_list entry. This works because the window
-// between reading the mask and the mask being 
-// freed is not large enough for another mask
-// to overwrite it, although we should extend this
-// to store temporary variables in the future 
-// if we do decide to use variable cycle memory. 
-
 module agu (
     input            clk,
     input            CPU_RESET_n,
@@ -66,7 +17,8 @@ module agu (
     output reg [3:0] [7:0] loaded_word, 
     output reg [3:0] [7:0] header,
     output reg       loading,
-    output reg       agu_ready
+    output reg       agu_ready,
+    output reg       UART_TX
 );
 
 typedef struct packed {
@@ -134,15 +86,33 @@ defparam
 reg prev_written;
 reg [2:0] prev_written_id;
 
-reg [7:0] chr;
-reg chr_ready;
 reg rc_done;
+
+reg [1:0] [1:0] new_status;
+reg [7:0] TXDATA;
+reg [1:0] [7:0] RXDATA;
+reg [1:0] [1:0] STATUS;
+
 char_in char_in (
     .clk(clk),
     .CPU_RESET_n(CPU_RESET_n),
     .UART_RX(UART_RX),
     .rc_done(rc_done),
-    .chr(chr)
+    .chr(RXDATA[1])
+);
+
+reg dat_out_ready;
+reg out_ready;
+reg prev_out_ready;
+reg prev_rc_done;
+
+char_out char_out (
+    .chr_ready(dat_out_ready),
+    .clk(clk),
+    .CPU_RESET_n(CPU_RESET_n),
+    .chr(TXDATA),
+    .tm_ready(out_ready),
+    .UART_TX(UART_TX)
 );
 
 reg [31:0] load_ptr;
@@ -150,6 +120,7 @@ reg header_loaded;
 reg byte_written;
 reg loading_done;
 reg [1:0] load_word_ptr;
+
 always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
     if (!CPU_RESET_n) begin
         load_ptr <= '0;
@@ -165,12 +136,30 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
         loaded_valid <= 0;
         loaded_word <= 0;
         byte_written <= 1;
+        new_status[1] <= 2'b00;
+        prev_rc_done <= 1'b1;
+        prev_out_ready <= 1'b1;
+        STATUS[1] <= 2'b01;
     end else if (flush) begin
+        prev_rc_done <= rc_done;
+        prev_out_ready <= out_ready;
+        dat_out_ready <= '0;
+        if (!STATUS[1][1] && (!prev_rc_done) && (rc_done)) begin
+            new_status[1][1] <= !new_status[1][1];
+            STATUS[1][1] <= 1'b1;
+            RXDATA[0] <= RXDATA[1];
+        end
+        if (!STATUS[1][0] && (!prev_out_ready) && (out_ready)) begin
+            new_status[1][0] <= !new_status[1][0];
+            STATUS[1][0] <= 1'b1;
+        end
         write_enable <= '0;
         qhead <= '0;
         prev_written <= '0;
         prev_written_id <= '0;
     end else if (loading) begin
+        logic [3:0] [7:0] tmp_word;
+        tmp_word = loaded_word; 
         write_enable <= '0;
         if (loaded_valid) begin
             loaded_valid <= '0;
@@ -183,19 +172,20 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
         else if (rc_done && !byte_written) begin
             if (!header_loaded) begin
                 byte_written <= 1;
-                header[load_word_ptr] <= chr;
+                header[load_word_ptr] <= RXDATA[1];
                 load_word_ptr <= load_word_ptr + 1;
                 if (load_word_ptr == 2'b11)
                     header_loaded <= 1'b1;
             end else begin
                 byte_written <= 1;
-                loaded_word[load_word_ptr] <= chr;
+                tmp_word[load_word_ptr] = RXDATA[1];
+                loaded_word[load_word_ptr] <= RXDATA[1];
                 load_word_ptr <= load_word_ptr + 1;
                 header <= header - 1;
                 if (load_word_ptr == 2'b11 || !header) begin
                     loaded_valid <= 1'b1;
                     write_enable <= '1;
-                    queue_data <= loaded_word;
+                    queue_data <= tmp_word;
                     queue_mask <= 4'b1111;
                     load_ptr <= load_ptr + 1;
                     queue_addr <= load_ptr;
@@ -206,7 +196,22 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
             end
         end    
     end else begin
+        logic [2:0] t_qhead;
+        t_qhead = qhead;
+        prev_rc_done <= rc_done;
+        prev_out_ready <= out_ready;
+        dat_out_ready <= '0;
+        if (!STATUS[1][1] && (!prev_rc_done) && (rc_done)) begin
+            new_status[1][1] <= !new_status[1][1];
+            STATUS[1][1] <= 1'b1;
+            RXDATA[0] <= RXDATA[1];
+        end
+        if (!STATUS[1][0] && (!prev_out_ready) && (out_ready)) begin
+            new_status[1][0] <= !new_status[1][0];
+            STATUS[1][0] <= 1'b1;
+        end
         if (prev_written) begin
+            t_qhead = t_qhead + 1;
             qhead <= qhead + 1;
             prev_written <= 1'b0;
         end
@@ -214,11 +219,26 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
         queue_mask <= '0;
         queue_addr <= '0;
         queue_data <= '0;
-        if (retire_rob_valid) begin
+        if ((queue[t_qhead].addr == 32'h10000000 ||
+                queue[t_qhead].addr == 32'h10000004) && retire_rob_valid) begin
+            prev_written <= 1'b1;
+            case (queue[t_qhead].addr) 
+                32'h10000000 : begin
+                    TXDATA <= queue[t_qhead].data;
+                    dat_out_ready <= 1'b1;
+                    STATUS[1][0] <= 1'b0;
+                    new_status[1][0] <= !new_status[1][0];
+                end
+                32'h10000004 : begin
+                    STATUS[1][1] <= 1'b0;
+                    new_status[1][1] <= !new_status[1][1];
+                end
+            endcase
+        end else if (retire_rob_valid) begin
             write_enable <= 1;
-            queue_mask <= queue[qhead].mask;
-            queue_addr <= queue[qhead].addr>>2;
-            queue_data <= queue[qhead].data;
+            queue_mask <= queue[t_qhead].mask;
+            queue_addr <= queue[t_qhead].addr>>2;
+            queue_data <= queue[t_qhead].data;
             prev_written <= 1'b1;     
         end
     end
@@ -236,13 +256,73 @@ always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multipl
         lsq_miss <= 0;
         qtail <= '0;
         uop_out <= '0;
+        STATUS[0] <= 2'b01;
+        new_status[0] <= 2'b00; 
     end else if (flush) begin
+        new_status[0] <= new_status[1];
+        STATUS[0] <= STATUS[1];
         queue = '0;
         qtail <= '0;
         agu_ready <= 1;
         lsq_miss <= 0;
         uop_out <= '0; 
+    end else if ((addr == 32'h10000000 || addr == 32'h10000004 
+            || addr == 32'h10000008) && valid && agu_ready && !lsq_miss) begin
+        // If the address is one of 3 designated UART addresses...
+        // If it's write we write to sp eculative transmittion buffer,
+        // on retire we move the speculative transmittion buffer into 
+        // the real one and copy over the speculative state.
+        logic [1:0] status; 
+        agu_ready <= n_stall;
+        status = STATUS[0];
+        if (new_status[1][1] != new_status[0][1]) begin
+            STATUS[0][1] <= STATUS[1][1];
+            new_status[0][1] <= new_status[1][1];
+            status[1] = STATUS[1][1];
+        end if (new_status[1][0] != new_status[0][0]) begin
+            STATUS[0][0] <= STATUS[1][0];
+            new_status[0][0] <= new_status[1][0];
+            status[0] = STATUS[1][0];
+        end
+
+        uop_out.was_uart <= 1'b1;
+        uop_out.valid <= 1'b1;
+        uop_out.was_jmp <= 1'b0;
+        uop_out.faulted <= 1'b0;
+        uop_out.was_mem <= 1'b1;
+        uop_out.unconditional_jmp <= 1'b0;
+        uop_out.dst_reg <= uop.dst_reg;
+        uop_out.dst_valid <= uop.dst_valid;
+        uop_out.rob_id <= uop.rob_id;
+        queue[qtail].rob_id <= uop.rob_id;
+        queue[qtail].data <= src_2;
+        queue[qtail].addr <= {addr>>2, 2'b00};
+        if (addr == 32'h10000000) begin
+            qtail <= qtail + 1;
+            STATUS[0][0] <= 1'b0;
+        end else if (addr == 32'h10000004) begin
+            qtail <= qtail + 1;
+            case (uop.op)
+                4'b0000: // load byte 
+                    uop_out.dst_val <= {{25{RXDATA[0][7]}}, RXDATA[0][6:0]};
+                4'b0001: // load half 
+                    uop_out.dst_val <= {{24{1'b0}}, RXDATA[0][6:0]};
+                4'b0010: // load word
+                    uop_out.dst_val <= {{24{1'b0}}, RXDATA[0][6:0]};
+                4'b0100: // load byte unsigned (zero extends)
+                    uop_out.dst_val <= {{24{1'b0}}, RXDATA[0][7:0]};
+                4'b0101: // load half unsigned (zero extends)
+                    uop_out.dst_val <= {{24{1'b0}}, RXDATA[0][6:0]};              
+                default:
+                    uop_out.faulted <= 1'b1;
+            endcase
+            STATUS[0][1] <= 1'b0;
+        end else if (addr == 32'h10000008) begin
+            uop_out.was_uart <= 1'b0;
+            uop_out.dst_val <= {{30{1'b0}}, status};
+        end
     end else begin // store
+        uop_out.was_uart <= 1'b0;
         if ((uop.op_type == 3'b011) && valid && agu_ready && !lsq_miss) begin
             logic [3:0] mask_ins;
             logic [3:0] mask_needed_ins;
@@ -302,6 +382,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multipl
             logic [31:0] all_dat; // cause I'm all dat (mic drop!)
             logic [31:0] raw_mem_shifted;
             logic [3:0] mask_shifted; // can't index bits of shifted regs for some reason?
+            uop_out.was_uart <= 1'b0;
             all_dat = 0;
             mask_shifted = mask>>offset;
             raw_mem_shifted = raw_mem_data>>(offset*8);
@@ -333,6 +414,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multipl
             uop_out.rob_id <= uop.rob_id;
             lsq_miss <= 1'b0;
         end else if ((uop.op_type == 3'b001) && valid && agu_ready && !lsq_miss) begin
+            uop_out.was_uart <= 1'b0;
             uop_out.valid <= 1'b0;
             agu_ready <= 1'b0;
             lsq_miss <= 1'b0;
