@@ -100,7 +100,7 @@ module cpu(
       ///////// KEY ///////// 1.2 V ///////
       input       [3:0]  KEY,
 
-      ///////// LEDG ///////// 2.5 V ///////
+*/      ///////// LEDG ///////// 2.5 V ///////
       output      [7:0]  LEDG,
 
       ///////// LEDR ///////// 2.5 V ///////
@@ -422,6 +422,10 @@ always @(posedge `CLK or negedge CPU_RESET_n) begin
             p_reg_ready <= p_reg_ready_tmp;
       end
 end
+
+wire [31:0] x15 = p_regs[a_reg_state[15]];
+assign LEDG = x15[7:0];
+assign LEDR = x15[17:8];
 
 retire retire (
       .clk(`CLK),

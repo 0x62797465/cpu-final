@@ -227,7 +227,7 @@ end
 logic [6:0] f_count;
 logic n_stall;
 
-assign n_stall = ( (qhead-qtail) > 1 || (qhead==qtail)); // prevents LSQ overflow
+assign n_stall = ( (qhead-qtail) > 2 || (qhead==qtail)); // prevents LSQ overflow
 
 always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multiple drivers
     if (!CPU_RESET_n) begin
@@ -256,10 +256,16 @@ always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multipl
             agu_ready <= n_stall;
             lsq_miss <= 1'b0;
             uop_out.faulted <= 1'b0;
-            for (int i = 0; i < 8; i++) begin
-                if ((queue[qhead+i].addr>>2 == addr>>2) && (qhead+i != qtail)) begin
-                    mask_ins = queue[qhead+i].mask;
-                    data_ins = queue[qhead+i].data;
+            if (qhead != qtail) begin 
+                for (int i = 0; i < 8; i++) begin
+                    logic [2:0] q_ptr;
+                    q_ptr = qhead+i[2:0];
+                    if (q_ptr == qtail)
+                        break;
+                    if ((queue[q_ptr].addr>>2 == addr>>2) && (q_ptr != qtail)) begin
+                        mask_ins = queue[q_ptr].mask;
+                        data_ins = queue[q_ptr].data;
+                    end
                 end
             end
             case (uop.op)
@@ -342,9 +348,13 @@ always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multipl
             // and can write to any bytes because writes stack on top of each other in 
             // the LSQ. You may be asking: what about missprediction? It should work, probably. 
             for (int i = 0; i < 8; i++) begin
-                if ((queue[qhead+i].addr>>2 == addr>>2) && (qhead+i != qtail)) begin
-                    mask = queue[qhead+i].mask;
-                    data = queue[qhead+i].data>>(offset*8);
+                logic [2:0] q_ptr;
+                q_ptr = qhead+i[2:0];
+                if (q_ptr == qtail)
+                    break;
+                if ((queue[q_ptr].addr>>2 == addr>>2) && (q_ptr != qtail)) begin
+                    mask = queue[q_ptr].mask;
+                    data = queue[q_ptr].data>>(offset*8);
                 end
             end
 
