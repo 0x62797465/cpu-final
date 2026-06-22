@@ -1,5 +1,5 @@
 # Status
-This is unfinished, and can only run extremely basic programs. The base 32-bit risc-v userspace ISA is implemented.
+The first prototype is finished, although more changes are likely to be made. The base 32-bit risc-v userspace ISA is implemented.
 
 # Benchmark status
 - CPU tb: working but incomplete; i/o is not implemented

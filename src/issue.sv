@@ -4,7 +4,7 @@ module issue (
         input                      clk,
 		input                      CPU_RESET_n,
 		input  var uop_t [1:0]     uops_renamed,
-		input  reg       [63:0]    p_reg_ready,
+	    input  reg       [63:0]    p_reg_ready,
         input                      agu_ready,
         input                      flush,
 
@@ -22,8 +22,8 @@ reg [3:0] mem_head = '0;
 // reg [3:0] mem_spec_head = '0; // cool trick for out of order mem
 reg [3:0] mem_tail = '0;
 
-uop_t [7:0] alu_issue_queue = '0;
-reg [7:0] alu_uops_fl = '1;
+uop_t [1:0] [7:0] alu_issue_queue = '0;
+reg [1:0] [7:0] alu_uops_fl = '1;
 
 always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
     if (!CPU_RESET_n) begin
@@ -53,14 +53,19 @@ always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
         agu_valid <= '0;
         stall_backwards <= '0;
     end else begin
-        logic [3:0] acum_alu;
-        acum_alu = '0;
+        logic [1:0] [3:0] acum_alu;
+        acum_alu[0] = '0;
         for (int i = 0; i < 8; i++) begin
-			acum_alu = acum_alu + alu_uops_fl[i];
+			acum_alu[0] = acum_alu[0] + alu_uops_fl[0][i];
 		end
+        acum_alu[1] = '0;
+        for (int i = 0; i < 8; i++) begin
+			acum_alu[1] = acum_alu[1] + alu_uops_fl[1][i];
+		end
+
         // Prevent IQ from being filled up
 
-        if ((acum_alu <= 5)
+        if ((acum_alu[0] <= 3) || (acum_alu[1] <= 3)
             || ((mem_tail+3) == (mem_head))
             || ((mem_tail+2) == (mem_head))
             || ((mem_tail+1) == (mem_head))
@@ -76,19 +81,19 @@ always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
         alu_2_valid <= 1'b0;
         
         for (int a = 0; a < 8; a = a + 1) begin
-            if ((!alu_uops_fl[a]) && (!alu_issue_queue[a].src1_valid || p_reg_ready[alu_issue_queue[a].src1_reg]) &&
-                (!alu_issue_queue[a].src2_valid || p_reg_ready[alu_issue_queue[a].src2_reg])) begin // if valid and sources are ready
-                alu_uops_fl[a] = 1'b1;
-                alu_1_uop <= alu_issue_queue[a];
+            if ((!alu_uops_fl[0][a]) && (!alu_issue_queue[0][a].src1_valid || p_reg_ready[alu_issue_queue[0][a].src1_reg]) &&
+                (!alu_issue_queue[0][a].src2_valid || p_reg_ready[alu_issue_queue[0][a].src2_reg])) begin // if valid and sources are ready
+                alu_uops_fl[0][a] = 1'b1;
+                alu_1_uop <= alu_issue_queue[0][a];
                 alu_1_valid <= 1;
                 break;
             end
         end 
         for (int a = 0; a < 8; a = a + 1) begin
-            if ((!alu_uops_fl[a]) && (!alu_issue_queue[a].src1_valid || p_reg_ready[alu_issue_queue[a].src1_reg]) &&
-                (!alu_issue_queue[a].src2_valid || p_reg_ready[alu_issue_queue[a].src2_reg])) begin // if valid and sources are ready
-                alu_uops_fl[a] = 1'b1;
-                alu_2_uop <= alu_issue_queue[a];
+            if ((!alu_uops_fl[1][a]) && (!alu_issue_queue[1][a].src1_valid || p_reg_ready[alu_issue_queue[1][a].src1_reg]) &&
+                (!alu_issue_queue[1][a].src2_valid || p_reg_ready[alu_issue_queue[1][a].src2_reg])) begin // if valid and sources are ready
+                alu_uops_fl[1][a] = 1'b1;
+                alu_2_uop <= alu_issue_queue[1][a];
                 alu_2_valid <= 1;
                 break;
             end
@@ -130,9 +135,9 @@ always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
                     if (uops_renamed[i].op_type == 3'b010 || uops_renamed[i].op_type == 3'b100 || uops_renamed[i].op_type == 3'b110 // inside statements seemingly unsupported by synth
                         || uops_renamed[i].op_type == 3'b111  || uops_renamed[i].op_type == 3'b000  || uops_renamed[i].op_type ==  3'b101) begin // ALU
                         for (int a = 0; a < 8; a = a + 1) begin // finds free IQ entry, should be auto-optimized to something better
-                            if (alu_uops_fl[a] == 1'b1) begin
-                                alu_issue_queue[a] <= uops_renamed[i];
-                                alu_uops_fl[a] = 1'b0; // allocates it
+                            if (alu_uops_fl[i][a] == 1'b1) begin
+                                alu_issue_queue[i][a] <= uops_renamed[i];
+                                alu_uops_fl[i][a] = 1'b0; // allocates it
                                 break;
                             end
                         end
