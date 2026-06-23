@@ -283,7 +283,6 @@ decode decode (
       .new_pc(new_pc),
       .jmp(jmp)
 );
-
 reg [63:0] [31:0] p_regs; // 64 32 bit physical registers
 // every register is initally pointing towards the 0th reg
 // so when we need to write somwhere we change the preg to

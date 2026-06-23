@@ -61,9 +61,7 @@ typedef struct packed {
     `0110` - rem (signed)
     `0111` - remu (unsigned)
     
-
-    
-# Module "contracts"
+# Module "contracts" (unfinished)
 ## Fetch
 On reset: the fetch address becomes zero.
 On stall: the PC does not get updated, prev_fetch_addr remains as fetch_addr. 

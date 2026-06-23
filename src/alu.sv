@@ -29,6 +29,13 @@ reg [63:0] mul_res;
 reg src_1_sign;
 reg src_2_sign;
 
+// working div regs
+reg div;
+reg [31:0] div_src1;
+reg [31:0] div_src2;
+reg [31:0] div_acum;
+reg [4:0]  acum_ptr;
+
 logic [31:0] src_1_unsigned;
 assign src_1_unsigned = (src_1[31] & uop.op == 4'b0001) || 
     (src_1[31] & uop.op == 4'b0010) ? -src_1 : src_1;
@@ -45,8 +52,64 @@ always @(posedge clk or negedge CPU_RESET_n) begin
         valid_count <= '0;
         ready <= '1;
         mul <= '0;
+        div <= '0;
     end else if (flush) begin
         uop_out <= '0;
+        valid_count <= '0;
+        div_acum <= '0;
+        div_src1 <= '0;
+        ready <= '1;
+        mul <= '0;
+        div <= '0;
+    end else if (div) begin
+        logic [31:0] tmp_acum;
+        logic [31:0] tmp_rem;
+        logic [63:0] tmp_div; // running out of names
+        valid_count <= valid_count + valid;
+        tmp_acum = div_acum;
+        tmp_rem = div_src1;
+        if (acum_ptr == 0 || div_src1 == 0 || div_src2 == 0) begin
+            ready <= 1'b1;
+            div <= 1'b0;
+
+            uop_out.was_uart <= 1'b0;
+            uop_out <= '0;
+            uop_out.was_mem <= 1'b0;
+            uop_out.was_jmp <= 1'b0;
+            uop_out.rob_id <= working_uop.rob_id;
+            uop_out.dst_val <= '0;
+            uop_out.dst_reg <= working_uop.dst_reg;
+            uop_out.dst_valid <= working_uop.dst_valid;
+            uop_out.faulted <= working_uop.faulted;
+            uop_out.valid <= 1'b1;
+            uop_out.unconditional_jmp <= 1'b0;
+
+            case (working_uop.op)
+                4'b0100 : 
+                    uop_out.dst_val <= (src_1_sign^src_2_sign) ? -div_acum : div_acum;
+                4'b0101 :
+                    uop_out.dst_val <= div_acum;
+                4'b0110 :
+                    uop_out.dst_val <= src_1_sign ? -div_src1 : div_src1;
+                4'b0111 :
+                    uop_out.dst_val <= div_src1;
+            endcase
+        end else begin
+            for (int i = 0; i < 4; i++) begin
+                tmp_div = {{32{1'b0}}, div_src2} << (acum_ptr-i);
+                if (tmp_rem >= tmp_div) begin
+                    tmp_acum[acum_ptr-i] = 1'b1;
+                    tmp_rem = {{32{1'b0}}, tmp_rem} - tmp_div;
+                end
+            end
+
+            div_src1 <= tmp_rem;
+            if (acum_ptr == 3) begin
+                acum_ptr <= '0;
+            end else
+                acum_ptr <= acum_ptr - 4;
+            div_acum <= tmp_acum;
+        end
     end else if (mul) begin
         logic [63:0] negative_mul_res; 
         ready <= 1'b1;
@@ -106,6 +169,24 @@ always @(posedge clk or negedge CPU_RESET_n) begin
                 uop_out.valid <= 1'b0;
                 src_1_sign <= src_1[31];
                 src_2_sign <= src_2[31];
+            end else if (uop.op == 4'b0101 || uop.op == 4'b0111) begin
+                div_acum <= '0;
+                acum_ptr <= 5'd31;
+                div <= 1'b1;
+                uop_out.valid <= 1'b0;
+                src_1_sign <= 1'b0;
+                src_2_sign <= 1'b0;
+                div_src1 <= src_1;
+                div_src2 <= src_2;
+            end else if (uop.op == 4'b0100 || uop.op == 4'b0110) begin
+                div_acum <= '0;
+                acum_ptr <= 5'd31;
+                div <= 1'b1;
+                uop_out.valid <= 1'b0;
+                src_1_sign <= src_1[31];
+                src_2_sign <= src_2[31];
+                div_src1 <= src_1[31] ? -src_1 : src_1;
+                div_src2 <= src_2[31] ? -src_2 : src_2;
             end
         end else begin
             case (uop.op_type)

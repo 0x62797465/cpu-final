@@ -1,4 +1,10 @@
-all: mul_test stack_test fib_test gcc_basic recursion_gcc clean
+all: div_test mul_test stack_test fib_test gcc_basic recursion_gcc clean
+
+div_test:
+	riscv32-none-elf-as -march=rv32im div.s -o test.o
+	riscv32-none-elf-ld -Ttext=0x0 test.o -o test.elf
+	riscv32-none-elf-objcopy -O binary test.elf div.bin
+
 
 stack_test:
 	riscv32-none-elf-as -march=rv32i stack.s -o test.o

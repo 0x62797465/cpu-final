@@ -1,3 +1,4 @@
+div.bin ffffff94
 mul.bin fffff495
 fib.bin 00001a6d
 stack.bin 00000043
