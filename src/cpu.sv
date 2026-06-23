@@ -328,6 +328,8 @@ reg alu_2_valid;
 reg agu_valid;
 
 reg agu_ready; // is unit ready
+reg alu_1_ready;
+reg alu_2_ready;
 
 issue issue (
       // inputs
@@ -337,6 +339,8 @@ issue issue (
       .agu_ready(agu_ready), // needed because variable-cycle since we check LSQ and BRAM
       .p_reg_ready(p_reg_ready), // signals what's ready
       .flush((flush|loading)),
+      .alu_1_ready(alu_1_ready),
+      .alu_2_ready(alu_2_ready),
 
       // outputs
       .alu_1_uop(alu_1_uop),
@@ -360,7 +364,8 @@ alu alu_1 (
       .flush((flush|loading)),
 
       // outputs
-      .uop_out(ex_uops[0])
+      .uop_out(ex_uops[0]),
+      .ready(alu_1_ready)
 );
 
 alu alu_2 (
@@ -374,7 +379,8 @@ alu alu_2 (
       .flush((flush|loading)),
 
       // outputs
-      .uop_out(ex_uops[1])
+      .uop_out(ex_uops[1]),
+      .ready(alu_2_ready)
 );
 
 reg [3:0] retire_rob_id;

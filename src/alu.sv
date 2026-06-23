@@ -7,10 +7,6 @@
 // pipeline since we don't want an entire seperate control
 // flow unit. 
 
-// For conceptual simplicity, although the original uop
-// structure probably would've been optimized automatically
-// to be more ~~memory~~ LUT efficient. 
-
 module alu (
     input               clk,
     input               CPU_RESET_n,
@@ -20,15 +16,26 @@ module alu (
     input reg [31:0]    src_2,
     input               flush,
 
-    output var post_ex_uop_t uop_out
+    output var post_ex_uop_t uop_out,
+    output reg ready
 );
+
+reg [1:0] valid_count;
 logic was_taken = '0;
+reg variable_cycle;
 always @(posedge clk or negedge CPU_RESET_n) begin
 	if (!CPU_RESET_n) begin
         uop_out <= '0;
+        valid_count <= '0;
+        ready <= '1;
+        variable_cycle <= '0;
     end else if (flush) begin
         uop_out <= '0;
-    end else if (valid) begin
+    end else if (variable_cycle) begin
+        
+    end else if (valid | valid_count) begin
+        ready <= 1'b1;
+        //valid_count <= valid_count + valid;
         uop_out.was_uart <= 1'b0;
         was_taken = 0;
         uop_out <= '0;

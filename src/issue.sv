@@ -7,6 +7,8 @@ module issue (
 	    input  reg       [63:0]    p_reg_ready,
         input                      agu_ready,
         input                      flush,
+        input  reg                 alu_1_ready,
+        input  reg                 alu_2_ready,
 
         output var uop_t           alu_1_uop,
         output reg                 alu_1_valid,
@@ -80,24 +82,30 @@ always @(posedge clk or negedge CPU_RESET_n) begin // places uops into IQ
         alu_1_valid <= 1'b0;
         alu_2_valid <= 1'b0;
         
-        for (int a = 0; a < 8; a = a + 1) begin
-            if ((!alu_uops_fl[0][a]) && (!alu_issue_queue[0][a].src1_valid || p_reg_ready[alu_issue_queue[0][a].src1_reg]) &&
-                (!alu_issue_queue[0][a].src2_valid || p_reg_ready[alu_issue_queue[0][a].src2_reg])) begin // if valid and sources are ready
-                alu_uops_fl[0][a] = 1'b1;
-                alu_1_uop <= alu_issue_queue[0][a];
-                alu_1_valid <= 1;
-                break;
+        if (alu_1_ready) begin
+            for (int a = 0; a < 8; a = a + 1) begin
+                if ((!alu_uops_fl[0][a]) && (!alu_issue_queue[0][a].src1_valid || p_reg_ready[alu_issue_queue[0][a].src1_reg]) &&
+                    (!alu_issue_queue[0][a].src2_valid || p_reg_ready[alu_issue_queue[0][a].src2_reg])) begin // if valid and sources are ready
+                    alu_uops_fl[0][a] = 1'b1;
+                    alu_1_uop <= alu_issue_queue[0][a];
+                    alu_1_valid <= 1;
+                    break;
+                end
+            end 
+        end else
+            alu_1_valid <= 0;
+        if (alu_2_ready) begin
+            for (int a = 0; a < 8; a = a + 1) begin
+                if ((!alu_uops_fl[1][a]) && (!alu_issue_queue[1][a].src1_valid || p_reg_ready[alu_issue_queue[1][a].src1_reg]) &&
+                    (!alu_issue_queue[1][a].src2_valid || p_reg_ready[alu_issue_queue[1][a].src2_reg])) begin // if valid and sources are ready
+                    alu_uops_fl[1][a] = 1'b1;
+                    alu_2_uop <= alu_issue_queue[1][a];
+                    alu_2_valid <= 1;
+                    break;
+                end
             end
-        end 
-        for (int a = 0; a < 8; a = a + 1) begin
-            if ((!alu_uops_fl[1][a]) && (!alu_issue_queue[1][a].src1_valid || p_reg_ready[alu_issue_queue[1][a].src1_reg]) &&
-                (!alu_issue_queue[1][a].src2_valid || p_reg_ready[alu_issue_queue[1][a].src2_reg])) begin // if valid and sources are ready
-                alu_uops_fl[1][a] = 1'b1;
-                alu_2_uop <= alu_issue_queue[1][a];
-                alu_2_valid <= 1;
-                break;
-            end
-        end
+        end else
+            alu_2_valid <= 0;
         // END ALU ISSUE
 
         // START MEM ISSUE
