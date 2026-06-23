@@ -1,5 +1,5 @@
 # Status
-The first prototype is finished, although more changes are likely to be made. The base 32-bit risc-v userspace ISA is implemented.
+The first prototype is finished, although more changes are likely to be made. The 32-bit RISCV userspace ISA (rv32im) is implemented.
 
 # Benchmark status
 - CPU tb: working but incomplete; i/o is not implemented
@@ -9,7 +9,7 @@ The first prototype is finished, although more changes are likely to be made. Th
 - Works! Some possible bugs may exist, but everything does seem to work!
 
 # :star emoji: Features/Details :star emoji:
-- The ISA is just base RISCV-32, with only usermode instructions supported. 
+- The ISA is just rv32im, with only usermode instructions supported. 
 - For compilation instructions, refer to testcases/cpu/README.md (or look at the makefile). 
 - support for MMIO (just UART) is included.
 - Loader is embedded in the hardware (mainly agu, connected to fetch), 32 bit size header needs to be transmitted then the rest of the raw program via UART

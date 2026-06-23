@@ -51,12 +51,13 @@ module cpu(
       ///////// GPIO ///////// 3.3-V LVTTL ///////
       inout       [35:0] GPIO,
 `else
+*/ 
       ///////// HEX2 ///////// 1.2 V ///////
       output      [6:0]  HEX2,
 
       ///////// HEX3 ///////// 1.2 V ///////
       output      [6:0]  HEX3,
-
+/*
 
 `endif
 
@@ -67,13 +68,13 @@ module cpu(
       output             HDMI_TX_HS,
       input              HDMI_TX_INT,
       output             HDMI_TX_VS,
-
+*/
       ///////// HEX0 /////////
       output      [6:0]  HEX0,
 
       ///////// HEX1 /////////
       output      [6:0]  HEX1,
-
+/*
 
       ///////// HSMC ///////// 2.5 V ///////
       input              HSMC_CLKIN0,
@@ -99,7 +100,7 @@ module cpu(
 
       ///////// KEY ///////// 1.2 V ///////
       input       [3:0]  KEY,
-
+*/
       ///////// LEDG ///////// 2.5 V ///////
       output      [7:0]  LEDG,
 
@@ -220,6 +221,7 @@ always @(*) begin
       end
       fetch_addr_aligned = fetch_addr >> 3;
 end      
+
 
 always @(posedge `CLK or negedge CPU_RESET_n) begin
       if (!CPU_RESET_n) begin
@@ -446,5 +448,11 @@ retire retire (
       .update_btb(update_btb),
       .taken(taken)
 );
+
+// simply for visualizing states
+assign {HEX0, HEX1, HEX2, HEX3} = {cycle_count[31:18], prev_fetch_addr[14:0]};
+assign LEDR = misspred_count; 
+assign LEDG = {1'b0, flush, !agu_ready, !alu_1_ready, !alu_2_ready, STALL_FROM_RENAME, STALL_FROM_ISSUE, loading};
+
 
 endmodule
