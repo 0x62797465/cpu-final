@@ -107,7 +107,9 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 								uops[i].src2_valid <= 1'b1;
 								uops[i].dst_valid <= 1'b1;
 								uops[i].dst_reg <= instructions[i][11:7];
-								if ((instructions[i][31:25] != 7'h00) && // possibly invalid funct7
+								if (instructions[i][31:25] == 7'h01) begin
+									uops[i].op_type <= 3'b111; // RV32M
+								end else if ((instructions[i][31:25] != 7'h00) && // possibly invalid funct7
 									!((instructions[i][31:25] == 7'h20) && // valid for certain instructions
 									((instructions[i][14:12] == 3'h0) || (instructions[i][14:12] == 3'h5)))) begin // only opcodes which it makes sense
 									uops[i].faulted <= 1;
@@ -198,6 +200,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 							end
 						U_type : begin // b0110111
 								uops[i].op_type <= 3'b110; // load type
+								uops[i].op <= 4'b0000;
 								uops[i].src1_valid <= 1'b0;
 								uops[i].src2_valid <= 1'b0;
 								uops[i].dst_valid <= 1'b1;
@@ -205,7 +208,8 @@ always @(posedge clk or negedge CPU_RESET_n) begin
 								uops[i].immediate <= instructions[i][31:12];
 							end
 						U_secondary_type : begin // b0010111
-								uops[i].op_type <= 3'b111; // load+pc type
+								uops[i].op_type <= 3'b110; 
+								uops[i].op <= 4'b0001; // load+pc type
 								uops[i].src1_valid <= 1'b0;
 								uops[i].src2_valid <= 1'b0;
 								uops[i].dst_valid <= 1'b1;

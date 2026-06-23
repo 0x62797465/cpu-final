@@ -49,10 +49,20 @@ typedef struct packed {
 `101` - jmp+pc+imm
     jumps to pc+imm
 `110` - load
-    load upper immediate (dest = immediate << 12)
-`111` - load+pc
-    add upper imm to PC (dest = pc + (im << 12))
+    `0000` - load upper immediate (dest = immediate << 12)
+    `0001` - add upper imm to PC (dest = pc + (im << 12))
+`111` - variable cycle arithmatic
+    `0000` - mul (low bits result, sign doesn't matter)
+    `0001` - mulh (high bits, signed both)
+    `0010` - mulsu (high bits, signed first unsigned second)
+    `0011` - mulu (high, both unsigned)
+    `0100` - div (signed)
+    `0101` - divu (unsigned)
+    `0110` - rem (signed)
+    `0111` - remu (unsigned)
+    
 
+    
 # Module "contracts"
 ## Fetch
 On reset: the fetch address becomes zero.
