@@ -95,7 +95,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin
                     uop_out.dst_val <= div_src1;
             endcase
         end else begin
-            for (int i = 0; i < 4; i++) begin
+            for (int i = 0; i < 2; i++) begin
                 tmp_div = {{32{1'b0}}, div_src2} << (acum_ptr-i);
                 if (tmp_rem >= tmp_div) begin
                     tmp_acum[acum_ptr-i] = 1'b1;
@@ -104,10 +104,10 @@ always @(posedge clk or negedge CPU_RESET_n) begin
             end
 
             div_src1 <= tmp_rem;
-            if (acum_ptr == 3) begin
+            if (acum_ptr == 1) begin
                 acum_ptr <= '0;
             end else
-                acum_ptr <= acum_ptr - 4;
+                acum_ptr <= acum_ptr - 2;
             div_acum <= tmp_acum;
         end
     end else if (mul) begin
