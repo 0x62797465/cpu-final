@@ -6,7 +6,6 @@ module retire (
     input var rob_ent_t [1:0] rob_entries,
     input [1:0] rob_ent_val,
     input var post_ex_uop_t [2:0] ex_uops,
-    //input tail,
 
     output reg [3:0] head,
     output reg [31:0] [5:0] a_reg_state,
@@ -78,19 +77,22 @@ always @(posedge clk or negedge reset) begin
     end else if (!halt) begin // freezes architectural state on halt
         logic prev_ready;
         logic [3:0] tmp_head;
+        logic [1:0] jmp_count;
+        jmp_count = '0;
         f_list_freed <= '0;
         tmp_head = head;
         prev_ready = 1;
         retire_rob_valid <= 0;
         update_btb <= 2'b00;
-        for (int i = 0; i < 2; i++) begin // subject to change
-            if (prev_ready && rob[tmp_head].finished) begin
+        for (int i = 0; i < 6; i++) begin // subject to change
+            if (prev_ready && rob[tmp_head].finished && (jmp_count != 2'b11)) begin
                 if (rob[tmp_head].spec) begin
-                    update_btb[i] <= 1'b1;
+                    update_btb[jmp_count] <= 1'b1;
                     if (rob[tmp_head].taken) 
-                        taken[i] <= 2'b01;
+                        taken[jmp_count] <= 2'b01;
                     else 
-                        taken[i] <= 2'b11; // -1
+                        taken[jmp_count] <= 2'b11; // -1
+                    jmp_count = jmp_count + 1;
                 end
                 if (rob[tmp_head].faulted) begin
                     halt <= 1'b1;

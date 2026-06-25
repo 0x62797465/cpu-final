@@ -420,15 +420,6 @@ always @(posedge clk or negedge CPU_RESET_n) begin // unified to prevent multipl
             lsq_miss <= 1'b0;
             uop_out.faulted <= 1'b0;
             mask = 1'b0;
-            // Initially, this was just going to be oldest write to same address applied first
-            // BUT there can be writes not alligned with this one. Normally, this would be fine
-            // just apply all the writes. But since the writes have to be in order, we would
-            // need to sort by age, then apply all matching writes. This does not work due to timing.
-            // Instead, we are going to apply the oldest matching write, and during insertion
-            // into the queue, we will use the oldest writes in order to make this write. But
-            // this introduces a new problem: our writes will all have to be 32 bit aligned
-            // and can write to any bytes because writes stack on top of each other in 
-            // the LSQ. You may be asking: what about missprediction? It should work, probably. 
             for (int i = 0; i < 8; i++) begin
                 logic [2:0] q_ptr;
                 q_ptr = qhead+i[2:0];
