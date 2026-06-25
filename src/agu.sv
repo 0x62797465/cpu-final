@@ -140,24 +140,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
         prev_rc_done <= 1'b1;
         prev_out_ready <= 1'b1;
         STATUS[1] <= 2'b01;
-    end else if (flush) begin
-        prev_rc_done <= rc_done;
-        prev_out_ready <= out_ready;
-        dat_out_ready <= '0;
-        if (!STATUS[1][1] && (!prev_rc_done) && (rc_done)) begin
-            new_status[1][1] <= !new_status[1][1];
-            STATUS[1][1] <= 1'b1;
-            RXDATA[0] <= RXDATA[1];
-        end
-        if (!STATUS[1][0] && (!prev_out_ready) && (out_ready)) begin
-            new_status[1][0] <= !new_status[1][0];
-            STATUS[1][0] <= 1'b1;
-        end
-        write_enable <= '0;
-        qhead <= '0;
-        prev_written <= '0;
-        prev_written_id <= '0;
-    end else if (loading) begin
+    end else begin if (loading) begin
         logic [3:0] [7:0] tmp_word;
         tmp_word = loaded_word; 
         write_enable <= '0;
@@ -241,6 +224,24 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
             queue_data <= queue[t_qhead].data;
             prev_written <= 1'b1;     
         end
+    end
+    if (flush) begin
+        prev_rc_done <= rc_done;
+        prev_out_ready <= out_ready;
+        dat_out_ready <= '0;
+        if (!STATUS[1][1] && (!prev_rc_done) && (rc_done)) begin
+            new_status[1][1] <= !new_status[1][1];
+            STATUS[1][1] <= 1'b1;
+            RXDATA[0] <= RXDATA[1];
+        end
+        if (!STATUS[1][0] && (!prev_out_ready) && (out_ready)) begin
+            new_status[1][0] <= !new_status[1][0];
+            STATUS[1][0] <= 1'b1;
+        end
+        qhead <= '0;
+        prev_written <= '0;
+        prev_written_id <= '0;
+    end
     end
 end
 

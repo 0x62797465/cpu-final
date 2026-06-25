@@ -32,7 +32,8 @@ always @(posedge clk or negedge reset) begin
         tail <= '0;
     end else begin
         logic [3:0] tmp_tail;
-        tmp_tail = tail; 
+        tmp_tail = tail;
+        rob[tmp_tail] <= '0; 
         for (int i = 0; i < 2; i++) begin
             if (rob_ent_val[i]) begin
                 rob[tmp_tail] <= rob_entries[i];
@@ -85,7 +86,8 @@ always @(posedge clk or negedge reset) begin
         retire_rob_valid <= 0;
         update_btb <= 2'b00;
         for (int i = 0; i < 6; i++) begin // subject to change
-            if (prev_ready && rob[tmp_head].finished && (jmp_count != 2'b11)) begin
+            //$write("%b %b %b %b\n ", prev_ready, (head != tail), rob[tmp_head].finished, (jmp_count != 2'b11));
+            if (prev_ready && (head != tail) && rob[tmp_head].finished && (jmp_count != 2'b11)) begin
                 if (rob[tmp_head].spec) begin
                     update_btb[jmp_count] <= 1'b1;
                     if (rob[tmp_head].taken) 
