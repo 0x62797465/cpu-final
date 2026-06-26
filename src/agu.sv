@@ -165,7 +165,7 @@ always @(posedge clk or negedge CPU_RESET_n) begin // Commit writes
                 loaded_word[load_word_ptr] <= RXDATA[1];
                 load_word_ptr <= load_word_ptr + 1;
                 header <= header - 1;
-                if (load_word_ptr == 2'b11 || !header) begin
+                if (load_word_ptr == 2'b11 || !(header-1)) begin
                     loaded_valid <= 1'b1;
                     write_enable <= '1;
                     queue_data <= tmp_word;

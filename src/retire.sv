@@ -87,7 +87,7 @@ always @(posedge clk or negedge reset) begin
         update_btb <= 2'b00;
         for (int i = 0; i < 6; i++) begin // subject to change
             //$write("%b %b %b %b\n ", prev_ready, (head != tail), rob[tmp_head].finished, (jmp_count != 2'b11));
-            if (prev_ready && (head != tail) && rob[tmp_head].finished && (jmp_count != 2'b11)) begin
+            if (prev_ready && (head != tail) && rob[tmp_head].finished && (jmp_count != 2'b10)) begin
                 if (rob[tmp_head].spec) begin
                     update_btb[jmp_count] <= 1'b1;
                     if (rob[tmp_head].taken) 

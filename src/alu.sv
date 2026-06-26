@@ -83,7 +83,10 @@ always @(posedge clk or negedge CPU_RESET_n) begin
             uop_out.faulted <= working_uop.faulted;
             uop_out.valid <= 1'b1;
             uop_out.unconditional_jmp <= 1'b0;
-
+            
+            if ((working_uop.op == 4'b0100 || working_uop.op == 4'b0101) && (div_src2 == 0)) begin
+                uop_out.dst_val = '1;
+            end
             case (working_uop.op)
                 4'b0100 : 
                     uop_out.dst_val <= (src_1_sign^src_2_sign) ? -div_acum : div_acum;
